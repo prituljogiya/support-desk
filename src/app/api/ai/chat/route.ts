@@ -45,11 +45,16 @@ export async function POST(req: Request) {
       organizationId: org.id,
       message: body.message,
       history: body.history,
+      userId: session.user.id,
+      userName: session.user.name || "Agent",
+      userEmail: session.user.email!,
+      canCreateTicket: true,
     });
 
-    await logAiEvent(org.id, "chat", {
+    await logAiEvent(org.id, result.ticket ? "chat_create_ticket" : "chat", {
       model: result.model,
       provider: "builtin",
+      ticketId: result.ticket?.id,
     });
 
     return jsonOk(result);
