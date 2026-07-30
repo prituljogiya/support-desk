@@ -7,6 +7,7 @@ import {
   StatusBadge,
   SyncBadge,
   SlaBadge,
+  ChannelBadge,
 } from "@/components/shell";
 import { PRIORITIES, STATUSES } from "@/lib/tickets";
 import { TicketExtras } from "@/components/ticket-extras";
@@ -29,6 +30,7 @@ type Ticket = {
   description: string;
   status: "open" | "pending" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
+  channel?: string;
   syncStatus: string;
   syncError?: string | null;
   freshdeskId?: number | null;
@@ -201,6 +203,7 @@ export function TicketThread({
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge status={ticket.status} />
             <PriorityBadge priority={ticket.priority} />
+            <ChannelBadge channel={ticket.channel} />
             {mode === "desk" ? (
               <>
                 <SlaBadge dueAt={ticket.firstResponseDueAt} label="FR" />
@@ -217,6 +220,9 @@ export function TicketThread({
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             From {ticket.requester.name} ({ticket.requester.email})
+            {ticket.channel === "whatsapp"
+              ? " · Replies send on WhatsApp"
+              : ""}
             {ticket.freshdeskId ? ` · FD #${ticket.freshdeskId}` : ""}
           </p>
         </div>

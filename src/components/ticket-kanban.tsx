@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { TicketPriority, TicketStatus } from "@prisma/client";
-import { PriorityBadge, SlaBadge } from "@/components/shell";
+import { PriorityBadge, SlaBadge, ChannelBadge } from "@/components/shell";
 import { STATUSES, statusLabel } from "@/lib/tickets";
 
 export type KanbanTicket = {
@@ -12,6 +12,7 @@ export type KanbanTicket = {
   subject: string;
   status: TicketStatus;
   priority: TicketPriority;
+  channel?: string;
   syncStatus: string;
   firstResponseDueAt?: string | null;
   resolutionDueAt?: string | null;
@@ -178,6 +179,7 @@ export function TicketKanban({ tickets: initial }: { tickets: KanbanTicket[] }) 
                       </div>
 
                       <div className="mb-2 flex flex-wrap gap-1">
+                        <ChannelBadge channel={t.channel} />
                         <PriorityBadge priority={t.priority} />
                         <SlaBadge dueAt={t.firstResponseDueAt} label="FR" />
                         <SlaBadge dueAt={t.resolutionDueAt} label="Res" />

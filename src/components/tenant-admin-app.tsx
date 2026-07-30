@@ -20,6 +20,7 @@ import type { MembershipRole } from "@prisma/client";
 import { InviteMemberForm } from "@/components/admin-forms";
 import { ApiKeysPanel } from "@/components/api-keys-panel";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { ChannelsHub } from "@/components/channels-hub";
 
 type Snapshot = {
   organization: {
@@ -321,8 +322,10 @@ export function TenantAdminApp() {
             />
           ) : null}
 
-          {section === "omni-email" ? (
-            <EmailInboundPanel org={data.organization} />
+          {section === "omni-hub" ||
+          section === "omni-email" ||
+          section === "omni-whatsapp" ? (
+            <ChannelsHub orgSlug={data.organization.slug} />
           ) : null}
 
           {section === "customers" ||
@@ -413,7 +416,7 @@ function DashboardHome({
         <KpiCard label="Overdue SLA" value={k.overdueTickets ?? 0} accent="#f43f5e" onClick={() => onGoto("tickets-escalated")} />
         <KpiCard label="CSAT" value={k.csat != null ? `${k.csat}/5` : "—"} accent="#8b5cf6" />
         <KpiCard label="Active agents" value={k.activeAgents ?? 0} onClick={() => onGoto("users")} />
-        <KpiCard label="Live chats" value={k.liveChats ?? 0} onClick={() => onGoto("omni-email")} />
+        <KpiCard label="Live chats" value={k.liveChats ?? 0} onClick={() => onGoto("omni-hub")} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">

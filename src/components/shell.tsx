@@ -57,6 +57,26 @@ export function SyncBadge({
   );
 }
 
+export function ChannelBadge({ channel }: { channel?: string | null }) {
+  if (!channel) return null;
+  const colors: Record<string, string> = {
+    portal: "bg-sky-50 text-sky-800",
+    email: "bg-indigo-50 text-indigo-800",
+    whatsapp: "bg-emerald-50 text-emerald-800",
+    chat: "bg-violet-50 text-violet-800",
+    api: "bg-slate-100 text-slate-700",
+  };
+  return (
+    <span
+      className={`inline-flex rounded px-2 py-0.5 text-xs font-medium capitalize ${
+        colors[channel] || "bg-slate-100 text-slate-700"
+      }`}
+    >
+      {channel}
+    </span>
+  );
+}
+
 export function SlaBadge({
   dueAt,
   label,

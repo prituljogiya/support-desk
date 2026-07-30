@@ -51,6 +51,8 @@ export const PERMISSIONS = [
   "reports.qa",
   "reports.export",
   "integrations.manage",
+  "channels.view",
+  "channels.manage",
   "branding.manage",
   "billing.view",
   "billing.manage",
@@ -127,6 +129,8 @@ export const ROLE_PERMISSIONS: Record<MembershipRole, Permission[]> = {
     "reports.view",
     "reports.team",
     "ai.use",
+    "channels.view",
+    "channels.manage",
   ],
   supervisor: [
     "desk.access",
@@ -158,6 +162,7 @@ export const ROLE_PERMISSIONS: Record<MembershipRole, Permission[]> = {
     "knowledge.view",
     "ai.use",
     "reports.view",
+    "channels.view",
   ],
   junior_agent: [
     "desk.access",
@@ -224,6 +229,8 @@ export const ROLE_PERMISSIONS: Record<MembershipRole, Permission[]> = {
     "api.webhooks",
     "api.logs",
     "integrations.manage",
+    "channels.view",
+    "channels.manage",
     "audit.view",
   ],
   auditor: [

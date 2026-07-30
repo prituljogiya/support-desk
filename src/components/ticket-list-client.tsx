@@ -9,6 +9,7 @@ import {
   StatusBadge,
   SyncBadge,
   SlaBadge,
+  ChannelBadge,
 } from "@/components/shell";
 import { STATUSES, PRIORITIES } from "@/lib/tickets";
 
@@ -17,6 +18,7 @@ type Ticket = {
   subject: string;
   status: TicketStatus;
   priority: TicketPriority;
+  channel?: string;
   syncStatus: string;
   syncError?: string | null;
   firstResponseDueAt?: string | null;
@@ -233,6 +235,7 @@ export function TicketListClient({
                     {t.subject}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <ChannelBadge channel={t.channel} />
                     <span>
                       {t.requester.name} ·{" "}
                       {t.assignee

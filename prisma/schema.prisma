@@ -131,6 +131,7 @@ model Organization {
   billingEvents   BillingEvent[]
   apiKeys         ApiKey[]
   attachments     Attachment[]
+  channelConnections ChannelConnection[]
 
   @@index([planId])
   @@index([industry])
@@ -246,6 +247,8 @@ model Contact {
   name           String
   email          String
   phone          String?
+  /// E.164 WhatsApp number e.g. 15551234567
+  whatsappE164   String?
   createdById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -256,8 +259,10 @@ model Contact {
   tickets      Ticket[]
 
   @@unique([organizationId, email])
+  @@unique([organizationId, whatsappE164])
   @@index([organizationId])
   @@index([companyId])
+  @@index([whatsappE164])
 }
 
 model Tag {
@@ -370,6 +375,7 @@ model Ticket {
   status             TicketStatus   @default(open)
   priority           TicketPriority @default(medium)
   channel            String         @default("portal")
+  channelConnectionId String?
   department         String         @default("general")
   country            String?
   region             String?
@@ -377,6 +383,8 @@ model Ticket {
   requesterId        String
   assigneeId         String?
   contactId          String?
+  /// Last customer WA/SMS/chat handle for outbound reply
+  customerExternalId String?
   freshdeskId        Int?
   syncStatus         SyncStatus     @default(pending)
   syncError          String?
@@ -389,20 +397,22 @@ model Ticket {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  requester    User         @relation("TicketRequester", fields: [requesterId], references: [id])
-  assignee     User?        @relation("TicketAssignee", fields: [assigneeId], references: [id])
-  contact      Contact?     @relation(fields: [contactId], references: [id])
-  messages     Message[]
-  tags         TicketTag[]
-  csat         CsatRating?
-  attachments  Attachment[]
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channelConnection ChannelConnection? @relation(fields: [channelConnectionId], references: [id], onDelete: SetNull)
+  requester         User               @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignee          User?              @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  contact           Contact?           @relation(fields: [contactId], references: [id])
+  messages          Message[]
+  tags              TicketTag[]
+  csat              CsatRating?
+  attachments       Attachment[]
 
   @@unique([organizationId, freshdeskId])
   @@index([organizationId])
   @@index([status])
   @@index([priority])
   @@index([channel])
+  @@index([channelConnectionId])
   @@index([department])
   @@index([assigneeId])
   @@index([requesterId])
@@ -413,24 +423,63 @@ model Ticket {
 }
 
 model Message {
-  id           String     @id @default(cuid())
-  ticketId     String
-  authorId     String
-  body         String
-  isInternal   Boolean    @default(false)
-  freshdeskId  Int?       @unique
-  syncStatus   SyncStatus @default(pending)
-  syncError    String?
-  lastSyncedAt DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                   String     @id @default(cuid())
+  ticketId             String
+  authorId             String
+  body                 String
+  isInternal           Boolean    @default(false)
+  /// inbound | outbound | note
+  direction            String     @default("outbound")
+  channel              String?
+  externalMessageId    String?
+  channelConnectionId  String?
+  freshdeskId          Int?       @unique
+  syncStatus           SyncStatus @default(pending)
+  syncError            String?
+  lastSyncedAt         DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author User   @relation(fields: [authorId], references: [id])
-  attachments Attachment[]
+  ticket            Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author            User               @relation(fields: [authorId], references: [id])
+  channelConnection ChannelConnection? @relation(fields: [channelConnectionId], references: [id], onDelete: SetNull)
+  attachments       Attachment[]
 
+  @@unique([channelConnectionId, externalMessageId])
   @@index([ticketId])
   @@index([syncStatus])
+  @@index([channel])
+}
+
+model ChannelConnection {
+  id             String   @id @default(cuid())
+  organizationId String
+  /// portal | email | whatsapp | api | chat | sms
+  type           String
+  name           String
+  /// meta_cloud | inbound_webhook | built_in | custom
+  provider       String   @default("built_in")
+  /// Provider credentials (token, phoneNumberId, verifyToken, etc.)
+  configJson     String   @default("{}")
+  /// WABA phone number id, mailbox address, etc.
+  externalId     String?
+  /// disconnected | connected | error
+  status         String   @default("disconnected")
+  webhookSecret  String?
+  enabled        Boolean  @default(true)
+  lastError      String?
+  lastEventAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tickets      Ticket[]
+  messages     Message[]
+
+  @@unique([organizationId, type])
+  @@index([organizationId])
+  @@index([type, status])
+  @@index([externalId])
 }
 
 model SyncCursor {

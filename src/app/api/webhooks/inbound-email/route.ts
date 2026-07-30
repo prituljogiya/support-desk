@@ -28,10 +28,6 @@ export async function POST(req: Request) {
       req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
       req.headers.get("x-inbound-secret") ||
       "";
-    const expected = process.env.CRON_SECRET || process.env.INBOUND_EMAIL_SECRET;
-    if (!expected || secret !== expected) {
-      return jsonError("Unauthorized", 401);
-    }
 
     const body = schema.parse(await req.json());
     const org = await prisma.organization.findUnique({
@@ -39,6 +35,32 @@ export async function POST(req: Request) {
       include: { plan: true },
     });
     if (!org || org.disabled) return jsonError("Organization not found", 404);
+
+    const { ensureDefaultChannels } = await import("@/lib/channels");
+    await ensureDefaultChannels(org.id);
+
+    const emailConn = await prisma.channelConnection.findUnique({
+      where: {
+        organizationId_type: { organizationId: org.id, type: "email" },
+      },
+    });
+
+    const envSecret =
+      process.env.CRON_SECRET || process.env.INBOUND_EMAIL_SECRET;
+    const okSecret =
+      (envSecret && secret === envSecret) ||
+      (emailConn?.webhookSecret && secret === emailConn.webhookSecret);
+    if (!okSecret) {
+      return jsonError("Unauthorized", 401);
+    }
+
+    if (emailConn && (!emailConn.enabled || emailConn.status !== "connected")) {
+      // Auto-connect on first successful authenticated webhook
+      await prisma.channelConnection.update({
+        where: { id: emailConn.id },
+        data: { status: "connected", enabled: true, lastEventAt: new Date() },
+      });
+    }
 
     const email = body.from.toLowerCase();
     const name =
@@ -96,6 +118,7 @@ export async function POST(req: Request) {
         requesterId: user.id,
         contactId: contact.id,
         channel: "email",
+        channelConnectionId: emailConn?.id,
         department: "general",
         syncStatus: "pending",
         firstResponseDueAt: sla.firstResponseDueAt,
@@ -105,11 +128,21 @@ export async function POST(req: Request) {
             authorId: user.id,
             body: body.text,
             isInternal: false,
+            direction: "inbound",
+            channel: "email",
+            channelConnectionId: emailConn?.id,
             syncStatus: "pending",
           },
         },
       },
     });
+
+    if (emailConn) {
+      await prisma.channelConnection.update({
+        where: { id: emailConn.id },
+        data: { lastEventAt: new Date(), status: "connected", enabled: true },
+      });
+    }
 
     await runTicketAutomations({
       organizationId: org.id,
@@ -128,7 +161,11 @@ export async function POST(req: Request) {
       await prisma.organization.update({
         where: { id: org.id },
         data: {
-          onboardingJson: JSON.stringify({ ...current, firstTicket: true }),
+          onboardingJson: JSON.stringify({
+            ...current,
+            firstTicket: true,
+            connectedChannel: true,
+          }),
         },
       });
     } catch {

@@ -75,6 +75,7 @@ export default async function DeskTicketPage({ params }: Props) {
         description: ticket.description,
         status: ticket.status,
         priority: ticket.priority,
+        channel: ticket.channel,
         syncStatus: ticket.syncStatus,
         syncError: ticket.syncError,
         freshdeskId: ticket.freshdeskId,

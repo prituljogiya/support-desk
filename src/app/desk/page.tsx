@@ -16,6 +16,7 @@ type Props = {
     q?: string;
     view?: string;
     layout?: string;
+    channel?: string;
   }>;
 };
 
@@ -46,6 +47,7 @@ export default async function DeskInboxPage({ searchParams }: Props) {
   const assigneeId = params.assigneeId || viewFilters.assigneeId;
   const tagId = params.tagId || viewFilters.tagId;
   const q = params.q;
+  const channel = params.channel || viewFilters.channel;
 
   const [tickets, agents, tags, views, counts] = await Promise.all([
     prisma.ticket.findMany({
@@ -53,6 +55,7 @@ export default async function DeskInboxPage({ searchParams }: Props) {
         organizationId: orgId,
         ...(status ? { status: status as never } : {}),
         ...(priority ? { priority: priority as never } : {}),
+        ...(channel ? { channel } : {}),
         ...(assigneeId === "unassigned"
           ? { assigneeId: null }
           : assigneeId
@@ -237,6 +240,18 @@ export default async function DeskInboxPage({ searchParams }: Props) {
               <input type="hidden" name="view" value={params.view} />
             ) : null}
             <select
+              name="channel"
+              defaultValue={channel ?? ""}
+              className="rounded border border-slate-200 px-2 py-1.5 text-sm"
+            >
+              <option value="">All channels</option>
+              {["portal", "email", "whatsapp", "chat", "api"].map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
               name="priority"
               defaultValue={priority ?? ""}
               className="rounded border border-slate-200 px-2 py-1.5 text-sm"
@@ -295,6 +310,7 @@ export default async function DeskInboxPage({ searchParams }: Props) {
               subject: t.subject,
               status: t.status,
               priority: t.priority,
+              channel: t.channel,
               syncStatus: t.syncStatus,
               firstResponseDueAt: t.firstResponseDueAt?.toISOString() ?? null,
               resolutionDueAt: t.resolutionDueAt?.toISOString() ?? null,
@@ -314,12 +330,14 @@ export default async function DeskInboxPage({ searchParams }: Props) {
               tagId,
               q,
               view: params.view,
+              channel,
             }}
             tickets={tickets.map((t) => ({
               id: t.id,
               subject: t.subject,
               status: t.status,
               priority: t.priority,
+              channel: t.channel,
               syncStatus: t.syncStatus,
               syncError: t.syncError,
               firstResponseDueAt: t.firstResponseDueAt?.toISOString() ?? null,

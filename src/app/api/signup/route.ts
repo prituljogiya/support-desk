@@ -81,6 +81,13 @@ export async function POST(req: Request) {
       return { user, org };
     });
 
+    try {
+      const { ensureDefaultChannels } = await import("@/lib/channels");
+      await ensureDefaultChannels(result.org.id);
+    } catch {
+      /* ignore */
+    }
+
     return jsonOk(
       {
         user: {

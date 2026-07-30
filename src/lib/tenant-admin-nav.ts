@@ -5,7 +5,9 @@ export type TenantAdminNavId =
   | "tickets-unassigned"
   | "tickets-escalated"
   | "tickets-archived"
+  | "omni-hub"
   | "omni-email"
+  | "omni-whatsapp"
   | "customers"
   | "organizations"
   | "contacts"
@@ -34,7 +36,7 @@ export type TenantNavGroup = {
   href?: TenantAdminNavId;
 };
 
-/** Only ship nav items that are real — stubs removed until built. */
+/** Real omnichannel surfaces — hub is the single-click setup. */
 export const TENANT_ADMIN_NAV: TenantNavGroup[] = [
   { id: "dashboard", label: "Dashboard", icon: "⌂", href: "dashboard" },
   { id: "onboarding", label: "Getting started", icon: "✓", href: "onboarding" },
@@ -53,8 +55,12 @@ export const TENANT_ADMIN_NAV: TenantNavGroup[] = [
   {
     id: "omni",
     label: "Channels",
-    icon: "✉️",
-    items: [{ id: "omni-email", label: "Email → tickets" }],
+    icon: "📡",
+    items: [
+      { id: "omni-hub", label: "Connect channels" },
+      { id: "omni-email", label: "Email" },
+      { id: "omni-whatsapp", label: "WhatsApp" },
+    ],
   },
   {
     id: "crm",

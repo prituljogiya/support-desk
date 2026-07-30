@@ -2,6 +2,7 @@ export type OnboardingState = {
   invitedTeam: boolean;
   brandedPortal: boolean;
   firstTicket: boolean;
+  connectedChannel: boolean;
   dismissed: boolean;
 };
 
@@ -9,6 +10,7 @@ export const EMPTY_ONBOARDING: OnboardingState = {
   invitedTeam: false,
   brandedPortal: false,
   firstTicket: false,
+  connectedChannel: false,
   dismissed: false,
 };
 
@@ -24,7 +26,10 @@ export function parseOnboarding(raw: string | null | undefined): OnboardingState
 export function onboardingComplete(state: OnboardingState) {
   return (
     state.dismissed ||
-    (state.invitedTeam && state.brandedPortal && state.firstTicket)
+    (state.invitedTeam &&
+      state.brandedPortal &&
+      state.firstTicket &&
+      state.connectedChannel)
   );
 }
 
@@ -44,9 +49,16 @@ export const ONBOARDING_STEPS = [
     cta: "Open branding",
   },
   {
+    key: "connectedChannel" as const,
+    title: "Connect a channel",
+    body: "One click to enable portal/API, or connect email and WhatsApp so tickets arrive everywhere.",
+    href: "/desk/admin?section=omni-hub",
+    cta: "Open channels",
+  },
+  {
     key: "firstTicket" as const,
     title: "Create or receive a ticket",
-    body: "Open a sample request from the portal, API, or inbound email.",
+    body: "Open a sample request from the portal, API, WhatsApp, or inbound email.",
     href: "/portal/tickets/new",
     cta: "New portal ticket",
   },

@@ -19,6 +19,10 @@ export async function GET() {
         logoUrl: true,
         brandColor: true,
         _count: { select: { tickets: true, invites: true, memberships: true } },
+        channelConnections: {
+          where: { status: "connected", enabled: true },
+          select: { type: true },
+        },
       },
     });
 
@@ -33,6 +37,15 @@ export async function GET() {
     }
     if ((org?._count.tickets ?? 0) > 0) {
       state.firstTicket = true;
+    }
+    const connectedTypes = new Set(org?.channelConnections.map((c) => c.type));
+    if (
+      connectedTypes.has("email") ||
+      connectedTypes.has("whatsapp") ||
+      connectedTypes.has("chat") ||
+      state.connectedChannel
+    ) {
+      state.connectedChannel = true;
     }
 
     return jsonOk({
@@ -49,6 +62,7 @@ const patchSchema = z.object({
   invitedTeam: z.boolean().optional(),
   brandedPortal: z.boolean().optional(),
   firstTicket: z.boolean().optional(),
+  connectedChannel: z.boolean().optional(),
   dismissed: z.boolean().optional(),
 });
 
