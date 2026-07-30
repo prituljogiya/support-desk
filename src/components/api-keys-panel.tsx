@@ -48,7 +48,7 @@ export function ApiKeysPanel() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
-        scopes: ["tickets:read", "contacts:read"],
+        scopes: ["tickets:read", "tickets:write", "contacts:read"],
       }),
     });
     const data = await res.json();
@@ -88,8 +88,14 @@ export function ApiKeysPanel() {
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
           <div className="font-medium text-slate-900">How to call the API</div>
           <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-emerald-200">
-{`curl -H "${docs.header}" \\
-  https://YOUR_DOMAIN${docs.endpoints[0]}`}
+{`# List tickets
+curl -H "${docs.header}" \\
+  https://YOUR_DOMAIN/api/v1/tickets
+
+# Create ticket
+curl -X POST -H "${docs.header}" -H "Content-Type: application/json" \\
+  -d '{"subject":"Help","description":"Details…","requesterEmail":"user@acme.com"}' \\
+  https://YOUR_DOMAIN/api/v1/tickets`}
           </pre>
           <ul className="mt-3 list-inside list-disc text-xs text-slate-600">
             {docs.endpoints.map((ep) => (

@@ -39,6 +39,7 @@ export async function GET() {
         header: "Authorization: Bearer sd_live_…",
         endpoints: [
           "GET /api/v1/tickets",
+          "POST /api/v1/tickets",
           "GET /api/v1/tickets/:id",
           "GET /api/v1/contacts",
         ],
