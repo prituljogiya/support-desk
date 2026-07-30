@@ -6,9 +6,7 @@ import { getAiConfig, parseAiJson } from "@/lib/llm";
 import { writeAuditLog } from "@/lib/audit";
 
 const schema = z.object({
-  provider: z
-    .enum(["openai", "openai_compatible", "ollama", "disabled"])
-    .optional(),
+  provider: z.enum(["builtin", "self_hosted", "disabled"]).optional(),
   baseUrl: z.string().max(500).optional(),
   apiKey: z.string().max(500).optional(),
   model: z.string().max(200).optional(),
@@ -17,7 +15,6 @@ const schema = z.object({
   maxTokens: z.number().int().min(50).max(4000).optional(),
 });
 
-/** Super-admin save AI config (keeps existing API key if blank). */
 export async function POST(req: Request) {
   try {
     const session = await requireSuperAdmin();
@@ -29,16 +26,19 @@ export async function POST(req: Request) {
     const prev = parseAiJson(settings?.aiJson);
 
     const next = {
-      provider: body.provider ?? current.provider,
+      provider: body.provider ?? "builtin",
       baseUrl: body.baseUrl ?? current.baseUrl,
-      model: body.model ?? current.model,
+      model:
+        (body.provider ?? current.provider) === "builtin"
+          ? "smartdesk-builtin"
+          : body.model ?? current.model,
       systemPrompt: body.systemPrompt ?? current.systemPrompt,
       temperature: body.temperature ?? current.temperature,
       maxTokens: body.maxTokens ?? current.maxTokens,
       apiKey:
         body.apiKey && body.apiKey.trim()
           ? body.apiKey.trim()
-          : prev.apiKey || current.apiKey || "",
+          : prev.apiKey || "",
     };
 
     await prisma.platformSetting.upsert({

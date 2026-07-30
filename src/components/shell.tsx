@@ -108,6 +108,12 @@ const deskNav: {
 }[] = [
   { href: "/desk", label: "Inbox", icon: "◉", permission: "desk.access" },
   {
+    href: "/desk/ai",
+    label: "AI Chat",
+    icon: "✦",
+    permission: "ai.use",
+  },
+  {
     href: "/desk/contacts",
     label: "Contacts",
     icon: "◎",
@@ -175,6 +181,8 @@ export function DeskShell({
             const active =
               item.href === "/desk"
                 ? pathname === "/desk" || pathname.startsWith("/desk/tickets")
+                : item.href === "/desk/ai"
+                  ? pathname.startsWith("/desk/ai")
                 : item.href === "/desk/analytics"
                   ? pathname.startsWith("/desk/analytics") ||
                     pathname.startsWith("/desk/reports")

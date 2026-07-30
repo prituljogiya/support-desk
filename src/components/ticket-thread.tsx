@@ -322,8 +322,14 @@ export function TicketThread({
               >
                 Summarize
               </button>
+              <a
+                href="/desk/ai"
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Open AI Chat
+              </a>
               <span className="text-[11px] text-slate-400">
-                Uses your platform LLM (OpenAI-compatible)
+                Built-in SmartDesk AI · no third-party LLM
               </span>
             </div>
           ) : null}

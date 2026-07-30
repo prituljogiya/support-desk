@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
 export type AiConfig = {
-  /** openai | openai_compatible | ollama | disabled */
-  provider: "openai" | "openai_compatible" | "ollama" | "disabled";
-  /** e.g. https://api.openai.com/v1 or http://localhost:11434/v1 */
+  /**
+   * builtin = SmartDesk's own AI (default, no third-party APIs)
+   * self_hosted = optional OpenAI-compatible URL you run yourself (not required)
+   * disabled = off
+   */
+  provider: "builtin" | "self_hosted" | "disabled";
   baseUrl: string;
   apiKey: string;
-  /** Model id — gpt-4o-mini, llama3.2, your fine-tuned name, etc. */
   model: string;
   systemPrompt: string;
   temperature: number;
@@ -14,12 +16,12 @@ export type AiConfig = {
 };
 
 const DEFAULTS: AiConfig = {
-  provider: "disabled",
-  baseUrl: "https://api.openai.com/v1",
+  provider: "builtin",
+  baseUrl: "",
   apiKey: "",
-  model: "gpt-4o-mini",
+  model: "smartdesk-builtin",
   systemPrompt:
-    "You are a helpful customer support agent. Be concise, empathetic, and accurate. Never invent account data.",
+    "You are SmartDesk built-in AI. Prefer the organization's knowledge base. Never invent account data.",
   temperature: 0.4,
   maxTokens: 800,
 };
@@ -32,33 +34,43 @@ export function parseAiJson(raw: string | null | undefined): Partial<AiConfig> {
   }
 }
 
+function normalizeProvider(
+  p: string | undefined,
+): AiConfig["provider"] {
+  if (p === "disabled") return "disabled";
+  if (
+    p === "self_hosted" ||
+    p === "openai" ||
+    p === "openai_compatible" ||
+    p === "ollama"
+  ) {
+    // Legacy third-party modes → treat as optional self-hosted only
+    return "self_hosted";
+  }
+  return "builtin";
+}
+
 export async function getAiConfig(): Promise<AiConfig> {
   const settings = await prisma.platformSetting.findUnique({
     where: { id: "default" },
   });
   const fromDb = parseAiJson(settings?.aiJson);
-
-  const provider =
-    fromDb.provider ||
-    (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY
-      ? "openai_compatible"
-      : "disabled");
+  const provider = normalizeProvider(fromDb.provider);
 
   return {
     ...DEFAULTS,
     ...fromDb,
-    provider: provider as AiConfig["provider"],
-    baseUrl:
-      fromDb.baseUrl ||
-      process.env.LLM_BASE_URL ||
-      process.env.OPENAI_BASE_URL ||
-      DEFAULTS.baseUrl,
+    provider,
+    baseUrl: fromDb.baseUrl || process.env.LLM_BASE_URL || "",
     apiKey:
       fromDb.apiKey ||
       process.env.LLM_API_KEY ||
       process.env.OPENAI_API_KEY ||
       "",
-    model: fromDb.model || process.env.LLM_MODEL || DEFAULTS.model,
+    model:
+      provider === "builtin"
+        ? "smartdesk-builtin"
+        : fromDb.model || process.env.LLM_MODEL || "local-model",
     systemPrompt: fromDb.systemPrompt || DEFAULTS.systemPrompt,
     temperature:
       typeof fromDb.temperature === "number"
@@ -73,20 +85,20 @@ export async function getAiConfig(): Promise<AiConfig> {
 
 export function aiConfigured(cfg: AiConfig) {
   if (cfg.provider === "disabled") return false;
-  // Ollama often needs no key
-  if (cfg.provider === "ollama") return Boolean(cfg.baseUrl && cfg.model);
-  return Boolean(cfg.baseUrl && cfg.model && cfg.apiKey);
+  if (cfg.provider === "builtin") return true;
+  return Boolean(cfg.baseUrl && cfg.model);
 }
 
+/** Only used when provider is self_hosted (your machine / VPC). Never required. */
 export async function chatCompletion(opts: {
   messages: { role: "system" | "user" | "assistant"; content: string }[];
   temperature?: number;
   maxTokens?: number;
 }) {
   const cfg = await getAiConfig();
-  if (!aiConfigured(cfg)) {
+  if (cfg.provider !== "self_hosted" || !cfg.baseUrl) {
     throw new Error(
-      "AI is not configured. Set Platform → AI (base URL, model, API key) or LLM_BASE_URL / LLM_API_KEY / LLM_MODEL env.",
+      "Self-hosted LLM is not enabled. SmartDesk uses built-in AI by default.",
     );
   }
 
@@ -117,22 +129,17 @@ export async function chatCompletion(opts: {
   try {
     json = JSON.parse(raw) as typeof json;
   } catch {
-    throw new Error(`LLM returned non-JSON (${res.status}): ${raw.slice(0, 200)}`);
+    throw new Error(`Self-hosted LLM non-JSON (${res.status}): ${raw.slice(0, 200)}`);
   }
-
   if (!res.ok) {
-    throw new Error(
-      json.error?.message || `LLM request failed (${res.status})`,
-    );
+    throw new Error(json.error?.message || `Self-hosted LLM failed (${res.status})`);
   }
-
   const content = json.choices?.[0]?.message?.content?.trim();
-  if (!content) throw new Error("LLM returned empty content");
-
+  if (!content) throw new Error("Self-hosted LLM returned empty content");
   return {
     content,
     model: cfg.model,
-    provider: cfg.provider,
+    provider: "self_hosted" as const,
     usage: json.usage || null,
   };
 }
@@ -151,6 +158,6 @@ export async function logAiEvent(
       },
     });
   } catch {
-    /* ignore metric failures */
+    /* ignore */
   }
 }

@@ -1,35 +1,12 @@
 import { requireSuperAdmin } from "@/lib/auth";
 import { handleApiError, jsonOk } from "@/lib/api";
-import { getAiConfig, aiConfigured, chatCompletion } from "@/lib/llm";
+import { getAiConfig, aiConfigured } from "@/lib/llm";
 
-/** Super-admin: current AI config (key redacted) + optional ping. */
-export async function GET(req: Request) {
+/** Super-admin: current AI config. Built-in is always ready. */
+export async function GET() {
   try {
     await requireSuperAdmin();
     const cfg = await getAiConfig();
-    const { searchParams } = new URL(req.url);
-    const ping = searchParams.get("ping") === "1";
-
-    let pingResult: { ok: boolean; reply?: string; error?: string } | null =
-      null;
-    if (ping && aiConfigured(cfg)) {
-      try {
-        const r = await chatCompletion({
-          messages: [
-            { role: "system", content: "Reply with exactly: ok" },
-            { role: "user", content: "ping" },
-          ],
-          maxTokens: 10,
-          temperature: 0,
-        });
-        pingResult = { ok: true, reply: r.content };
-      } catch (e) {
-        pingResult = {
-          ok: false,
-          error: e instanceof Error ? e.message : "ping failed",
-        };
-      }
-    }
 
     return jsonOk({
       config: {
@@ -41,8 +18,17 @@ export async function GET(req: Request) {
         maxTokens: cfg.maxTokens,
         apiKeySet: Boolean(cfg.apiKey),
         configured: aiConfigured(cfg),
+        mode:
+          cfg.provider === "builtin"
+            ? "SmartDesk built-in AI (no third-party APIs)"
+            : cfg.provider === "self_hosted"
+              ? "Optional self-hosted endpoint"
+              : "Disabled",
       },
-      ping: pingResult,
+      ping:
+        cfg.provider === "builtin"
+          ? { ok: true, reply: "ok · builtin" }
+          : null,
     });
   } catch (err) {
     return handleApiError(err);
