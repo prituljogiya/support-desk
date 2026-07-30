@@ -1,0 +1,607 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  owner
+  admin
+  manager
+  supervisor
+  agent
+  junior_agent
+  qa
+  customer
+  customer_manager
+  billing_manager
+  kb_editor
+  ai_manager
+  developer
+  auditor
+  guest
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  revoked
+}
+
+enum TicketStatus {
+  open
+  pending
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum SyncStatus {
+  synced
+  pending
+  error
+  skipped
+}
+
+model Plan {
+  id                String   @id @default(cuid())
+  key               String   @unique
+  name              String
+  description       String?
+  seatLimit         Int      @default(3)
+  features          String   @default("{}")
+  sortOrder         Int      @default(0)
+  monthlyPriceCents Int      @default(0)
+  yearlyPriceCents  Int      @default(0)
+  trialDays         Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organizations Organization[]
+}
+
+model Organization {
+  id                   String   @id @default(cuid())
+  name                 String
+  slug                 String   @unique
+  planId               String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  logoUrl              String?
+  brandColor           String?
+  freshdeskDomain      String?
+  freshdeskApiKey      String?
+  freshdeskWebhookSecret String?
+  disabled             Boolean  @default(false)
+  customDomain         String?
+  whiteLabel           Boolean  @default(false)
+  storageUsedBytes     Int      @default(0)
+  industry             String?
+  companySize          String?
+  country              String?
+  region               String?
+  city                 String?
+  billingEmail         String?
+  billingContact       String?
+  phone                String?
+  website              String?
+  notes                String?
+  segment              String?
+  mrrCents             Int      @default(0)
+  trialEndsAt          DateTime?
+  contractEndsAt       DateTime?
+  healthScore          Int      @default(100)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  plan            Plan             @relation(fields: [planId], references: [id])
+  memberships     Membership[]
+  invites         Invite[]
+  tickets         Ticket[]
+  contacts        Contact[]
+  companies       Company[]
+  tags            Tag[]
+  savedViews      SavedView[]
+  cannedResponses CannedResponse[]
+  macros          Macro[]
+  slaPolicies     SlaPolicy[]
+  businessHours   BusinessHours?
+  syncCursors     SyncCursor[]
+  knowledgeArticles KnowledgeArticle[]
+  notifications   Notification[]
+  automationRules AutomationRule[]
+  automationRuns  AutomationRun[]
+  csatRatings     CsatRating[]
+  kbSearchMisses  KbSearchMiss[]
+  aiEvents        AiMetricEvent[]
+  auditLogs       AuditLog[]
+  billingEvents   BillingEvent[]
+
+  @@index([planId])
+  @@index([industry])
+  @@index([country])
+  @@index([segment])
+  @@index([disabled])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  isSuperAdmin Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships      Membership[]
+  invitesSent      Invite[]          @relation("InviteSender")
+  ticketsRequested Ticket[]          @relation("TicketRequester")
+  ticketsAssigned  Ticket[]          @relation("TicketAssignee")
+  messages         Message[]
+  savedViews       SavedView[]
+  cannedResponses  CannedResponse[]
+  macros           Macro[]
+  contactsCreated  Contact[]         @relation("ContactCreator")
+  knowledgeArticles KnowledgeArticle[] @relation("ArticleAuthor")
+  notifications    Notification[]
+  csatRatings      CsatRating[]
+  auditLogs        AuditLog[]    @relation("AuditActor")
+  impersonations   AuditLog[]    @relation("ImpersonatedUser")
+}
+
+model Membership {
+  id             String         @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MembershipRole @default(customer)
+  disabled       Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model Invite {
+  id             String         @id @default(cuid())
+  organizationId String
+  email          String
+  role           MembershipRole @default(agent)
+  token          String         @unique @default(cuid())
+  status         InviteStatus   @default(pending)
+  invitedById    String
+  expiresAt      DateTime
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InviteSender", fields: [invitedById], references: [id])
+
+  @@index([organizationId, email])
+  @@index([token])
+}
+
+model Company {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  domain         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contacts     Contact[]
+
+  @@index([organizationId])
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  organizationId String
+  companyId      String?
+  name           String
+  email          String
+  phone          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id])
+  createdBy    User?        @relation("ContactCreator", fields: [createdById], references: [id])
+  tickets      Ticket[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([companyId])
+}
+
+model Tag {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  color          String   @default("#0369a1")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tickets      TicketTag[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model TicketTag {
+  ticketId String
+  tagId    String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, tagId])
+  @@index([tagId])
+}
+
+model SavedView {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  name           String
+  filters        String   @default("{}")
+  isShared       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+}
+
+model CannedResponse {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  body           String
+  keywords       String   @default("")
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId])
+}
+
+model Macro {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  actions        String   @default("{}")
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId])
+}
+
+model SlaPolicy {
+  id                      String   @id @default(cuid())
+  organizationId          String
+  name                    String
+  priority                TicketPriority?
+  firstResponseMinutes    Int
+  resolutionMinutes       Int
+  isDefault               Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model BusinessHours {
+  id             String @id @default(cuid())
+  organizationId String @unique
+  timezone       String @default("UTC")
+  /// JSON: { mon: [[9,17]], tue: [[9,17]], ... } hours in 24h local
+  schedule       String @default("{\"mon\":[[9,17]],\"tue\":[[9,17]],\"wed\":[[9,17]],\"thu\":[[9,17]],\"fri\":[[9,17]],\"sat\":[],\"sun\":[]}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id                 String         @id @default(cuid())
+  organizationId     String
+  subject            String
+  description        String
+  status             TicketStatus   @default(open)
+  priority           TicketPriority @default(medium)
+  channel            String         @default("portal")
+  department         String         @default("general")
+  country            String?
+  region             String?
+  city               String?
+  requesterId        String
+  assigneeId         String?
+  contactId          String?
+  freshdeskId        Int?
+  syncStatus         SyncStatus     @default(pending)
+  syncError          String?
+  lastSyncedAt       DateTime?
+  firstResponseDueAt DateTime?
+  resolutionDueAt    DateTime?
+  firstRespondedAt   DateTime?
+  resolvedAt         DateTime?
+  escalatedAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester    User         @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignee     User?        @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  contact      Contact?     @relation(fields: [contactId], references: [id])
+  messages     Message[]
+  tags         TicketTag[]
+  csat         CsatRating?
+
+  @@unique([organizationId, freshdeskId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([channel])
+  @@index([department])
+  @@index([assigneeId])
+  @@index([requesterId])
+  @@index([syncStatus])
+  @@index([firstResponseDueAt])
+  @@index([resolutionDueAt])
+  @@index([createdAt])
+}
+
+model Message {
+  id           String     @id @default(cuid())
+  ticketId     String
+  authorId     String
+  body         String
+  isInternal   Boolean    @default(false)
+  freshdeskId  Int?       @unique
+  syncStatus   SyncStatus @default(pending)
+  syncError    String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([syncStatus])
+}
+
+model SyncCursor {
+  id             String    @id @default(cuid())
+  organizationId String?
+  key            String    @default("freshdesk")
+  lastPullAt     DateTime?
+  cursor         String?
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+}
+
+model KnowledgeArticle {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  slug           String
+  body           String
+  category       String   @default("General")
+  published      Boolean  @default(true)
+  authorId       String?
+  viewCount      Int      @default(0)
+  helpfulVotes   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User?        @relation("ArticleAuthor", fields: [authorId], references: [id])
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([category])
+}
+
+model Notification {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String
+  title          String
+  body           String
+  link           String?
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([organizationId])
+}
+
+model AutomationRule {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  enabled        Boolean  @default(true)
+  /// JSON: { keywords?: string[], priority?: string }
+  match          String   @default("{}")
+  /// JSON: { assigneeId?: string, addTagIds?: string[], setPriority?: string }
+  actions        String   @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs         AutomationRun[]
+
+  @@index([organizationId])
+}
+
+model CsatRating {
+  id             String   @id @default(cuid())
+  organizationId String
+  ticketId       String   @unique
+  score          Int
+  comment        String?
+  ratedById      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ticket       Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ratedBy      User?        @relation(fields: [ratedById], references: [id])
+
+  @@index([organizationId])
+  @@index([score])
+}
+
+model AutomationRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  ruleId         String?
+  ticketId       String?
+  success        Boolean  @default(true)
+  detail         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rule         AutomationRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([createdAt])
+}
+
+model KbSearchMiss {
+  id             String   @id @default(cuid())
+  organizationId String
+  query          String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model AiMetricEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  type           String
+  meta           String   @default("{}")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id               String   @id @default(cuid())
+  organizationId   String?
+  actorUserId      String?
+  impersonatedUserId String?
+  action           String
+  meta             String   @default("{}")
+  createdAt        DateTime @default(now())
+
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor            User?         @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  impersonatedUser User?         @relation("ImpersonatedUser", fields: [impersonatedUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([actorUserId])
+  @@index([createdAt])
+}
+
+model Coupon {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  percentOff  Int
+  maxRedemptions Int?
+  redeemed    Int       @default(0)
+  active      Boolean   @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model PlatformSetting {
+  id           String   @id @default("default")
+  emailJson    String   @default("{}")
+  smsJson      String   @default("{}")
+  whatsappJson String   @default("{}")
+  aiJson       String   @default("{}")
+  storageJson  String   @default("{}")
+  cdnJson      String   @default("{}")
+  queueJson    String   @default("{}")
+  cacheJson    String   @default("{}")
+  securityJson String   @default("{}")
+  featuresJson String   @default("{}")
+  updatedAt    DateTime @updatedAt
+}
+
+enum BillingEventType {
+  payment
+  pending
+  failed
+  refund
+  invoice
+  tax
+  renewal
+}
+
+model BillingEvent {
+  id             String           @id @default(cuid())
+  organizationId String?
+  type           BillingEventType
+  amountCents    Int              @default(0)
+  currency       String           @default("usd")
+  status         String           @default("succeeded")
+  description    String?
+  invoiceNumber  String?
+  taxCents       Int              @default(0)
+  meta           String           @default("{}")
+  occurredAt     DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([occurredAt])
+  @@index([organizationId])
+}
+
