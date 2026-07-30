@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export function LoginForm({
@@ -12,7 +11,6 @@ export function LoginForm({
   callbackUrl?: string;
   initialEmail?: string;
 }) {
-  const router = useRouter();
   const [email, setEmail] = useState(initialEmail || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,13 +25,15 @@ export function LoginForm({
       password,
       redirect: false,
     });
-    setLoading(false);
     if (res?.error) {
+      setLoading(false);
       setError("Invalid email or password");
       return;
     }
-    router.push(callbackUrl || "/");
-    router.refresh();
+    // Prefer server redirect target from callback, else land on home for role routing
+    const dest =
+      callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/";
+    window.location.assign(dest);
   }
 
   return (

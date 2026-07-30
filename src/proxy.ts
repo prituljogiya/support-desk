@@ -3,11 +3,22 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { homeForRole, isDeskRole, isPortalRole } from "@/lib/permissions";
 
+function sessionCookieOpts(request: NextRequest) {
+  // Auth.js prefixes cookies with __Secure- on HTTPS (Vercel production/preview).
+  const secure =
+    request.nextUrl.protocol === "https:" || process.env.VERCEL === "1";
+  const salt = secure
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+  return { secureCookie: secure, salt, cookieName: salt };
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+    ...sessionCookieOpts(request),
   });
 
   const role = token?.membershipRole as string | null | undefined;
@@ -65,7 +76,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/signup", request.url));
   }
 
-  if (token && isPortal && role && isDeskRole(role as never) && !isPortalRole(role as never)) {
+  if (
+    token &&
+    isPortal &&
+    role &&
+    isDeskRole(role as never) &&
+    !isPortalRole(role as never)
+  ) {
     return NextResponse.redirect(new URL("/desk", request.url));
   }
 
