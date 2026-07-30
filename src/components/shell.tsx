@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { NotificationBell } from "@/components/notification-bell";
+import { LiveBadge, LiveSyncProvider } from "@/components/live-sync";
 import {
   priorityBadgeClass,
   priorityLabel,
@@ -156,6 +157,7 @@ export function DeskShell({
   }
 
   return (
+    <LiveSyncProvider>
     <div className="flex min-h-full bg-slate-100 text-slate-900">
       <aside className="flex w-[220px] shrink-0 flex-col border-r border-slate-200 bg-slate-900 text-slate-100">
         <div className="border-b border-slate-700/80 px-4 py-4">
@@ -216,6 +218,7 @@ export function DeskShell({
             </form>
           </div>
           <div className="flex items-center gap-2">
+            <LiveBadge />
             <NotificationBell />
             {data?.user?.isSuperAdmin ? (
               <Link
@@ -237,6 +240,7 @@ export function DeskShell({
         <main className="min-h-0 flex-1 overflow-auto">{children}</main>
       </div>
     </div>
+    </LiveSyncProvider>
   );
 }
 

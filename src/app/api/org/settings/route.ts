@@ -33,6 +33,8 @@ const schema = z.object({
   name: z.string().min(1).max(120).optional(),
   logoUrl: z.string().url().nullable().optional().or(z.literal("")),
   brandColor: z.string().max(20).nullable().optional(),
+  industry: z.string().max(80).nullable().optional(),
+  applySectorPack: z.boolean().optional(),
   freshdeskDomain: z.string().max(200).nullable().optional(),
   freshdeskApiKey: z.string().max(200).nullable().optional(),
   freshdeskWebhookSecret: z.string().max(200).nullable().optional(),
@@ -63,6 +65,9 @@ export async function PATCH(req: Request) {
         ...(body.brandColor !== undefined
           ? { brandColor: body.brandColor }
           : {}),
+        ...(body.industry !== undefined
+          ? { industry: body.industry || null }
+          : {}),
         ...(body.freshdeskDomain !== undefined
           ? { freshdeskDomain: body.freshdeskDomain || null }
           : {}),
@@ -86,6 +91,15 @@ export async function PATCH(req: Request) {
       include: { plan: true },
     });
 
+    if (body.industry && body.applySectorPack !== false) {
+      try {
+        const { applySectorPack } = await import("@/lib/sector-apply");
+        await applySectorPack(updated.id, body.industry);
+      } catch {
+        /* ignore */
+      }
+    }
+
     if (body.logoUrl !== undefined || body.brandColor !== undefined) {
       try {
         const { parseOnboarding } = await import("@/lib/onboarding");
@@ -108,6 +122,7 @@ export async function PATCH(req: Request) {
         slug: updated.slug,
         logoUrl: updated.logoUrl,
         brandColor: updated.brandColor,
+        industry: updated.industry,
         freshdeskDomain: updated.freshdeskDomain,
         freshdeskApiKeySet: Boolean(updated.freshdeskApiKey),
         freshdeskWebhookSecretSet: Boolean(updated.freshdeskWebhookSecret),

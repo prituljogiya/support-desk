@@ -67,8 +67,8 @@ export default async function HomePage() {
               Support Desk
             </h1>
             <p className="landing-rise landing-rise-delay-1 mt-6 max-w-xl text-lg leading-relaxed text-[var(--brand-soft)] sm:text-xl">
-              The multi-tenant helpdesk for teams that need a clear inbox,
-              a branded customer portal, and operations they can trust.
+              Real-time helpdesk for every sector — one live inbox across
+              portal, email, WhatsApp, and chat, tuned to how your industry works.
             </p>
             <div className="landing-rise landing-rise-delay-2 mt-10 flex flex-wrap items-center gap-3">
               <Link

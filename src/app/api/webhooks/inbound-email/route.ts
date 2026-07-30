@@ -172,6 +172,18 @@ export async function POST(req: Request) {
       /* ignore */
     }
 
+    try {
+      const { notifyDeskStaff } = await import("@/lib/sector-apply");
+      await notifyDeskStaff({
+        organizationId: org.id,
+        title: "New email ticket",
+        body: ticket.subject,
+        link: `/desk/tickets/${ticket.id}`,
+      });
+    } catch {
+      /* ignore */
+    }
+
     return jsonOk({ ticket: { id: ticket.id, subject: ticket.subject } }, { status: 201 });
   } catch (err) {
     return handleApiError(err);

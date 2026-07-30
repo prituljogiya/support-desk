@@ -44,9 +44,9 @@ export const ONBOARDING_STEPS = [
   {
     key: "brandedPortal" as const,
     title: "Brand your portal",
-    body: "Set logo and brand color so customers see your company, not a generic desk.",
-    href: "/desk/admin?section=settings-branding",
-    cta: "Open branding",
+    body: "Set logo, brand color, and industry so the desk matches your sector.",
+    href: "/desk/admin?section=settings-company",
+    cta: "Open company settings",
   },
   {
     key: "connectedChannel" as const,

@@ -9,6 +9,7 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(6).max(100),
   organizationName: z.string().min(1).max(120),
+  industry: z.string().max(80).optional(),
 });
 
 export async function POST(req: Request) {
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
           slug,
           planId: freePlan.id,
           brandColor: "#0c4a6e",
+          industry: body.industry || null,
         },
       });
 
@@ -86,6 +88,15 @@ export async function POST(req: Request) {
       await ensureDefaultChannels(result.org.id);
     } catch {
       /* ignore */
+    }
+
+    if (body.industry) {
+      try {
+        const { applySectorPack } = await import("@/lib/sector-apply");
+        await applySectorPack(result.org.id, body.industry);
+      } catch {
+        /* ignore */
+      }
     }
 
     return jsonOk(

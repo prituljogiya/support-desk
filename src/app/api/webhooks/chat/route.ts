@@ -146,6 +146,18 @@ export async function POST(req: Request) {
       data: { lastEventAt: new Date() },
     });
 
+    try {
+      const { notifyDeskStaff } = await import("@/lib/sector-apply");
+      await notifyDeskStaff({
+        organizationId: org.id,
+        title: "New live chat",
+        body: body.text.slice(0, 120),
+        link: `/desk/tickets/${ticket.id}`,
+      });
+    } catch {
+      /* ignore */
+    }
+
     return jsonOk({ ok: true, ticketId: ticket.id }, { status: 201 });
   } catch (err) {
     return handleApiError(err);

@@ -323,5 +323,17 @@ async function handleInboundText(opts: {
     /* ignore */
   }
 
+  try {
+    const { notifyDeskStaff } = await import("@/lib/sector-apply");
+    await notifyDeskStaff({
+      organizationId: org.id,
+      title: "New WhatsApp message",
+      body: opts.text.slice(0, 120),
+      link: `/desk/tickets/${ticket.id}`,
+    });
+  } catch {
+    /* ignore */
+  }
+
   return jsonOk({ ok: true, ticketId: ticket.id }, { status: 201 });
 }

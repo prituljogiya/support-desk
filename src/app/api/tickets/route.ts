@@ -160,6 +160,19 @@ export async function POST(req: Request) {
       await syncMessageOutbound(firstMessage.id);
     }
 
+    try {
+      const { notifyDeskStaff } = await import("@/lib/sector-apply");
+      await notifyDeskStaff({
+        organizationId: orgId,
+        title: `New ticket · ${ticket.channel}`,
+        body: ticket.subject,
+        link: `/desk/tickets/${ticket.id}`,
+        excludeUserId: session.user.id,
+      });
+    } catch {
+      /* ignore */
+    }
+
     const refreshed = await prisma.ticket.findUnique({
       where: { id: ticket.id },
       include: {

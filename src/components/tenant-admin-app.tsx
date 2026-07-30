@@ -21,6 +21,8 @@ import { InviteMemberForm } from "@/components/admin-forms";
 import { ApiKeysPanel } from "@/components/api-keys-panel";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { ChannelsHub } from "@/components/channels-hub";
+import { INDUSTRIES, getSectorPack } from "@/lib/sectors";
+import { LiveSyncProvider, LiveBadge } from "@/components/live-sync";
 
 type Snapshot = {
   organization: {
@@ -181,6 +183,7 @@ export function TenantAdminApp() {
   }
 
   return (
+    <LiveSyncProvider>
     <div className="flex min-h-[calc(100vh-0px)] bg-slate-100">
       <aside className="flex w-[250px] shrink-0 flex-col border-r border-slate-800 bg-slate-950 text-slate-100">
         <div className="border-b border-slate-800 px-4 py-4">
@@ -277,6 +280,7 @@ export function TenantAdminApp() {
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm">
+            <LiveBadge />
             <button
               type="button"
               disabled={busy}
@@ -386,6 +390,7 @@ export function TenantAdminApp() {
         </main>
       </div>
     </div>
+    </LiveSyncProvider>
   );
 }
 
@@ -1141,15 +1146,27 @@ function SettingsPanel({
   const [name, setName] = useState(org.name);
   const [brandColor, setBrandColor] = useState(org.brandColor || "#0c4a6e");
   const [logoUrl, setLogoUrl] = useState(org.logoUrl || "");
+  const [industry, setIndustry] = useState(org.industry || "Other");
   const [msg, setMsg] = useState<string | null>(null);
+  const pack = getSectorPack(industry);
 
   async function saveOrg() {
     const res = await fetch("/api/org/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, brandColor, logoUrl: logoUrl || null }),
+      body: JSON.stringify({
+        name,
+        brandColor,
+        logoUrl: logoUrl || null,
+        industry,
+        applySectorPack: true,
+      }),
     });
-    setMsg(res.ok ? "Saved" : "Failed to save");
+    setMsg(
+      res.ok
+        ? `Saved · ${pack.key} pack applied (tags, canned replies, SLA)`
+        : "Failed to save",
+    );
     if (res.ok) onSaved();
   }
 
@@ -1171,6 +1188,23 @@ function SettingsPanel({
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
+          </label>
+          <label className="block text-sm">
+            Industry / sector
+            <select
+              className="mt-1 w-full rounded border border-slate-200 px-3 py-2"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+            >
+              {INDUSTRIES.map((i) => (
+                <option key={i} value={i}>
+                  {i}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-slate-500">
+              {pack.tagline} · Depts: {pack.departments.join(", ")}
+            </span>
           </label>
           <label className="block text-sm">
             Brand color

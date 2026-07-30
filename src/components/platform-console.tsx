@@ -14,6 +14,7 @@ import {
 } from "@/components/platform-charts";
 import { PlatformDashboardsPanel } from "@/components/platform-dashboards-panel";
 import { PlatformSectionPanel } from "@/components/platform-section-panels";
+import { INDUSTRIES } from "@/lib/sectors";
 import {
   PLATFORM_FOOTER_NAV,
   PLATFORM_NAV,
@@ -187,17 +188,6 @@ type UserRow = {
 
 const TABS: { id: Tab; label: string }[] = []; // replaced by PLATFORM_NAV sidebar
 
-const INDUSTRIES = [
-  "SaaS",
-  "E-commerce",
-  "FinTech",
-  "Healthcare",
-  "Education",
-  "Agency",
-  "Retail",
-  "Manufacturing",
-  "Other",
-];
 const SIZES = ["1-10", "11-50", "51-200", "201-1000", "1000+"];
 const SEGMENTS = ["startup", "smb", "mid-market", "enterprise", "nonprofit"];
 

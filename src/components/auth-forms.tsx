@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { INDUSTRIES } from "@/lib/sectors";
 import Link from "next/link";
 
 export function LoginForm({
@@ -87,6 +88,7 @@ export function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [organizationName, setOrganizationName] = useState("");
+  const [industry, setIndustry] = useState("SaaS");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -97,7 +99,13 @@ export function SignupForm() {
     const res = await fetch("/api/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, organizationName }),
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        organizationName,
+        industry,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -153,6 +161,23 @@ export function SignupForm() {
           onChange={(e) => setOrganizationName(e.target.value)}
           className="w-full rounded border border-zinc-300 bg-white px-3 py-2 outline-none focus:border-sky-500"
         />
+      </label>
+      <label className="block text-sm">
+        <span className="mb-1 block text-zinc-600">Industry / sector</span>
+        <select
+          value={industry}
+          onChange={(e) => setIndustry(e.target.value)}
+          className="w-full rounded border border-zinc-300 bg-white px-3 py-2 outline-none focus:border-sky-500"
+        >
+          {INDUSTRIES.map((i) => (
+            <option key={i} value={i}>
+              {i}
+            </option>
+          ))}
+        </select>
+        <span className="mt-1 block text-xs text-zinc-500">
+          Loads tags, canned replies, and SLAs tuned for your sector.
+        </span>
       </label>
       <label className="block text-sm">
         <span className="mb-1 block text-zinc-600">Password</span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLive } from "@/components/live-sync";
 
 type Notification = {
   id: string;
@@ -13,6 +14,7 @@ type Notification = {
 };
 
 export function NotificationBell() {
+  const live = useLive();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -27,9 +29,15 @@ export function NotificationBell() {
 
   useEffect(() => {
     void load();
-    const id = setInterval(() => void load(), 20000);
-    return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (live.pulse > 0) void load();
+  }, [live.pulse]);
+
+  useEffect(() => {
+    if (live.unread > unread) setUnread(live.unread);
+  }, [live.unread, unread]);
 
   async function markAll() {
     await fetch("/api/notifications", {
