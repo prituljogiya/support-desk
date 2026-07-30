@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
-import { Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { Fraunces, Outfit } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const sans = Source_Sans_3({
+const sans = Outfit({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const serif = Source_Serif_4({
-  variable: "--font-serif",
+const display = Fraunces({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Support Desk",
-  description: "Customer support tickets with Freshdesk sync",
+  title: "Support Desk — Customer support for modern teams",
+  description:
+    "Multi-tenant helpdesk with agent inbox, customer portal, SLA, knowledge base, and analytics.",
 };
 
 export default function RootLayout({
@@ -24,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable} h-full`}>
-      <body className="min-h-full flex flex-col font-sans antialiased">
+    <html lang="en" className={`${sans.variable} ${display.variable} h-full`}>
+      <body className="flex min-h-full flex-col font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

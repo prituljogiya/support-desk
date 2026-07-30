@@ -321,7 +321,7 @@ export function AnalyticsCenter() {
               Operations intelligence
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Executive, SLA, agents, CSAT, channels, AI, automation, and more — Freshdesk-style.
+              Executive, SLA, agents, CSAT, channels, AI, automation, and more.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
