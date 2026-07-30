@@ -18,6 +18,7 @@ import {
 import { ROLE_LABELS, ROLE_PERMISSIONS, PERMISSIONS } from "@/lib/permissions";
 import type { MembershipRole } from "@prisma/client";
 import { InviteMemberForm } from "@/components/admin-forms";
+import { ApiKeysPanel } from "@/components/api-keys-panel";
 
 type Snapshot = {
   organization: {
@@ -1332,14 +1333,7 @@ function SettingsPanel({
         </div>
       )}
 
-      {section === "settings-api" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="font-mono text-xs text-slate-600">
-            <div>REST: /api/tickets, /api/contacts, /api/knowledge</div>
-            <div className="mt-2">Auth: session JWT · Org scoped</div>
-          </div>
-        </div>
-      )}
+      {section === "settings-api" && <ApiKeysPanel />}
     </div>
   );
 }

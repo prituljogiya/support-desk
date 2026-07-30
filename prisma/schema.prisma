@@ -126,12 +126,36 @@ model Organization {
   aiEvents        AiMetricEvent[]
   auditLogs       AuditLog[]
   billingEvents   BillingEvent[]
+  apiKeys         ApiKey[]
 
   @@index([planId])
   @@index([industry])
   @@index([country])
   @@index([segment])
   @@index([disabled])
+}
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  /// Visible prefix e.g. sd_live_ab12
+  prefix         String
+  /// SHA-256 hex of full key
+  keyHash        String    @unique
+  /// JSON string array of scopes e.g. ["tickets:read","contacts:read"]
+  scopes         String    @default("[\"tickets:read\",\"contacts:read\"]")
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([prefix])
 }
 
 model User {
@@ -150,6 +174,7 @@ model User {
   messages         Message[]
   savedViews       SavedView[]
   cannedResponses  CannedResponse[]
+  apiKeysCreated   ApiKey[]          @relation("ApiKeyCreator")
   macros           Macro[]
   contactsCreated  Contact[]         @relation("ContactCreator")
   knowledgeArticles KnowledgeArticle[] @relation("ArticleAuthor")
