@@ -58,12 +58,14 @@ export function TicketThread({
   agents = [],
   allTags = [],
   macrosEnabled = false,
+  aiEnabled = false,
 }: {
   ticket: Ticket;
   mode: "portal" | "desk";
   agents?: Person[];
   allTags?: Tag[];
   macrosEnabled?: boolean;
+  aiEnabled?: boolean;
 }) {
   const router = useRouter();
   const [ticket, setTicket] = useState(initial);
@@ -75,6 +77,8 @@ export function TicketThread({
   const [canned, setCanned] = useState<Canned[]>([]);
   const [suggestions, setSuggestions] = useState<Canned[]>([]);
   const [macros, setMacros] = useState<Macro[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode !== "desk") return;
@@ -177,6 +181,40 @@ export function TicketThread({
     router.refresh();
   }
 
+  async function aiSuggestReply() {
+    setAiBusy(true);
+    setError(null);
+    const res = await fetch("/api/ai/suggest-reply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId: ticket.id }),
+    });
+    const data = await res.json();
+    setAiBusy(false);
+    if (!res.ok) {
+      setError(data.error || "AI suggest failed");
+      return;
+    }
+    setBody(data.reply || "");
+  }
+
+  async function aiSummarize() {
+    setAiBusy(true);
+    setError(null);
+    const res = await fetch("/api/ai/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId: ticket.id }),
+    });
+    const data = await res.json();
+    setAiBusy(false);
+    if (!res.ok) {
+      setError(data.error || "AI summarize failed");
+      return;
+    }
+    setAiSummary(data.summary || null);
+  }
+
   function insertCanned(text: string) {
     const personalized = text.replace(/\{\{name\}\}/g, ticket.requester.name);
     setBody((prev) => (prev ? `${prev}\n\n${personalized}` : personalized));
@@ -264,6 +302,37 @@ export function TicketThread({
             <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-700">
               {error}
             </p>
+          ) : null}
+
+          {mode === "desk" && aiEnabled ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={aiBusy}
+                onClick={() => void aiSuggestReply()}
+                className="rounded-full bg-violet-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-800 disabled:opacity-50"
+              >
+                {aiBusy ? "AI working…" : "AI draft reply"}
+              </button>
+              <button
+                type="button"
+                disabled={aiBusy}
+                onClick={() => void aiSummarize()}
+                className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-50"
+              >
+                Summarize
+              </button>
+              <span className="text-[11px] text-slate-400">
+                Uses your platform LLM (OpenAI-compatible)
+              </span>
+            </div>
+          ) : null}
+
+          {aiSummary ? (
+            <div className="rounded-lg border border-violet-100 bg-violet-50/80 px-3 py-2 text-xs text-violet-950 whitespace-pre-wrap">
+              <div className="mb-1 font-semibold">AI summary</div>
+              {aiSummary}
+            </div>
           ) : null}
 
           {mode === "desk" && (suggestions.length > 0 || canned.length > 0) ? (

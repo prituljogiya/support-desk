@@ -18,7 +18,7 @@ const PLAN_FEATURES = {
     knowledge: true,
     automation: false,
     export: true,
-    aiAssistant: false,
+    aiAssistant: true,
     liveChat: true,
     whatsapp: true,
     assetManagement: false,

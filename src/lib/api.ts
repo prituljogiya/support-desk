@@ -17,6 +17,9 @@ export function handleApiError(err: unknown) {
   if (err instanceof ZodError) {
     return jsonError(err.issues[0]?.message ?? "Invalid input", 400);
   }
+  if (err instanceof Error && /LLM|AI is not configured|AI model/i.test(err.message)) {
+    return jsonError(err.message, 502);
+  }
   console.error(err);
   return jsonError("Internal server error", 500);
 }

@@ -62,6 +62,7 @@ export default async function DeskTicketPage({ params }: Props) {
     <TicketThread
       mode="desk"
       macrosEnabled={org ? can(org, "macros") : false}
+      aiEnabled={org ? can(org, "aiAssistant") : false}
       agents={agents.map((a) => ({
         id: a.user.id,
         name: a.user.name,

@@ -833,23 +833,163 @@ function AiPromptsPanel() {
 }
 
 function AiModelsPanel() {
-  const models = [
-    { name: "gpt-4.1-mini", role: "Suggest reply", cost: "$0.40 / 1M tok" },
-    { name: "gpt-4.1", role: "Complex macros", cost: "$2.00 / 1M tok" },
-    { name: "embeddings-small", role: "KB search", cost: "$0.02 / 1M tok" },
-  ];
+  const [provider, setProvider] = useState("openai_compatible");
+  const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
+  const [model, setModel] = useState("gpt-4o-mini");
+  const [apiKey, setApiKey] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [configured, setConfigured] = useState(false);
+  const [apiKeySet, setApiKeySet] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const res = await fetch("/api/ai/status");
+    const data = await res.json();
+    if (!res.ok) return;
+    const c = data.config;
+    setProvider(c.provider || "openai_compatible");
+    setBaseUrl(c.baseUrl || "");
+    setModel(c.model || "");
+    setSystemPrompt(c.systemPrompt || "");
+    setConfigured(Boolean(c.configured));
+    setApiKeySet(Boolean(c.apiKeySet));
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    const payload: Record<string, unknown> = {
+      provider,
+      baseUrl,
+      model,
+      systemPrompt,
+      temperature: 0.4,
+      maxTokens: 800,
+    };
+    if (apiKey.trim()) payload.apiKey = apiKey.trim();
+    const res = await fetch("/api/ai/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(data.error || "Save failed");
+      return;
+    }
+    setMsg("Saved AI model config");
+    setApiKey("");
+    await load();
+  }
+
+  async function ping() {
+    setBusy(true);
+    setMsg(null);
+    const res = await fetch("/api/ai/status?ping=1");
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(data.error || "Ping failed");
+      return;
+    }
+    if (data.ping?.ok) setMsg(`Ping OK · model replied: ${data.ping.reply}`);
+    else setMsg(data.ping?.error || "Ping failed — check URL/key/model");
+  }
+
   return (
     <div className="space-y-4">
-      <SectionHeader title="Models" subtitle="Configured model routing" />
-      <div className="grid gap-3 md:grid-cols-3">
-        {models.map((m, i) => (
-          <div key={m.name} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="h-1.5 w-12 rounded-full" style={{ background: colorAt(i) }} />
-            <div className="mt-3 font-semibold">{m.name}</div>
-            <div className="text-sm text-slate-500">{m.role}</div>
-            <div className="mt-2 text-xs text-slate-400">{m.cost}</div>
-          </div>
-        ))}
+      <SectionHeader
+        title="Your LLM"
+        subtitle="OpenAI-compatible API — OpenAI, Azure, Ollama, vLLM, LM Studio, or any custom model endpoint"
+      />
+      <div className="max-w-2xl space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-xs text-slate-500">
+          Status:{" "}
+          <strong className={configured ? "text-emerald-700" : "text-amber-700"}>
+            {configured ? "Connected" : "Not configured"}
+          </strong>
+          {apiKeySet ? " · API key set" : ""}
+        </p>
+        {msg ? (
+          <p className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-900">{msg}</p>
+        ) : null}
+        <label className="block text-sm">
+          Provider
+          <select
+            className="mt-1 w-full rounded border border-slate-200 px-3 py-2"
+            value={provider}
+            onChange={(e) => setProvider(e.target.value)}
+          >
+            <option value="openai_compatible">OpenAI-compatible (recommended)</option>
+            <option value="openai">OpenAI</option>
+            <option value="ollama">Ollama (local)</option>
+            <option value="disabled">Disabled</option>
+          </select>
+        </label>
+        <label className="block text-sm">
+          Base URL
+          <input
+            className="mt-1 w-full rounded border border-slate-200 px-3 py-2 font-mono text-xs"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="https://api.openai.com/v1 or http://localhost:11434/v1"
+          />
+        </label>
+        <label className="block text-sm">
+          Model name
+          <input
+            className="mt-1 w-full rounded border border-slate-200 px-3 py-2 font-mono text-xs"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="gpt-4o-mini / llama3.2 / your-fine-tuned-id"
+          />
+        </label>
+        <label className="block text-sm">
+          API key {apiKeySet ? "(leave blank to keep current)" : ""}
+          <input
+            type="password"
+            className="mt-1 w-full rounded border border-slate-200 px-3 py-2 font-mono text-xs"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="sk-… or leave empty for Ollama"
+          />
+        </label>
+        <label className="block text-sm">
+          System prompt
+          <textarea
+            rows={3}
+            className="mt-1 w-full rounded border border-slate-200 px-3 py-2 text-sm"
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+          />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void save()}
+            className="rounded-full bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+          >
+            Save model
+          </button>
+          <button
+            type="button"
+            disabled={busy || !configured}
+            onClick={() => void ping()}
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm disabled:opacity-50"
+          >
+            Test ping
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          Env fallbacks: LLM_BASE_URL, LLM_API_KEY, LLM_MODEL (or OPENAI_*). Agents use AI draft reply / summarize on tickets when the plan has AI Assistant.
+        </p>
       </div>
     </div>
   );
