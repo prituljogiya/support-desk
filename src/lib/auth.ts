@@ -52,6 +52,10 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
+const inviteCredentialsSchema = z.object({
+  inviteToken: z.string().min(1),
+});
+
 async function resolveActiveMembership(userId: string, preferredOrgId?: string | null) {
   if (preferredOrgId) {
     const preferred = await prisma.membership.findUnique({
@@ -91,6 +95,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [
     Credentials({
+      id: "credentials",
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -122,6 +127,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           membershipRole: membership?.role ?? null,
           organizationName: membership?.organization.name ?? null,
           organizationSlug: membership?.organization.slug ?? null,
+        };
+      },
+    }),
+    Credentials({
+      id: "invite",
+      name: "Invite",
+      credentials: {
+        inviteToken: { label: "Invite token", type: "text" },
+      },
+      async authorize(raw) {
+        const parsed = inviteCredentialsSchema.safeParse(raw);
+        if (!parsed.success) return null;
+
+        const { acceptInviteByToken } = await import("@/lib/invite-accept");
+        const result = await acceptInviteByToken(parsed.data.inviteToken);
+        if (!result) return null;
+
+        return {
+          id: result.id,
+          email: result.email,
+          name: result.name,
+          isSuperAdmin: result.isSuperAdmin,
+          organizationId: result.organizationId,
+          membershipRole: result.membershipRole,
+          organizationName: result.organizationName,
+          organizationSlug: result.organizationSlug,
         };
       },
     }),

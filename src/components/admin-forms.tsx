@@ -27,7 +27,9 @@ export function InviteMemberForm() {
       setError(data.error || "Failed to invite");
       return;
     }
-    setMessage(`Invite created: ${data.invite.acceptUrl}`);
+    setMessage(
+      `Invite link ready (share this — they join with one click, no signup form): ${typeof window !== "undefined" ? window.location.origin : ""}${data.invite.acceptUrl}`,
+    );
     setEmail("");
     router.refresh();
   }

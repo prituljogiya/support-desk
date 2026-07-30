@@ -6,7 +6,7 @@ import { homeForRole } from "@/lib/permissions";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; email?: string }>;
 }) {
   const session = await auth();
   if (session?.user) {
@@ -29,7 +29,10 @@ export default async function LoginPage({
           Sign in to your organization workspace.
         </p>
         <div className="mt-6">
-          <LoginForm callbackUrl={params.callbackUrl} />
+          <LoginForm
+            callbackUrl={params.callbackUrl}
+            initialEmail={params.email}
+          />
         </div>
       </div>
     </div>

@@ -1,11 +1,9 @@
 import { z } from "zod";
-import bcrypt from "bcryptjs";
 import { MembershipRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgAdmin } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
-import { isOrgAdminRole } from "@/lib/features";
-import { INVITABLE_ROLES, homeForRole } from "@/lib/permissions";
+import { INVITABLE_ROLES } from "@/lib/permissions";
 
 export async function GET() {
   try {
@@ -111,69 +109,20 @@ const acceptSchema = z.object({
   password: z.string().min(6).max(100).optional(),
 });
 
+/** @deprecated Prefer invite magic-link signIn("invite"). Kept for API clients. */
 export async function PUT(req: Request) {
   try {
     const body = acceptSchema.parse(await req.json());
-    const invite = await prisma.invite.findUnique({
-      where: { token: body.token },
-      include: { organization: true },
-    });
-
-    if (!invite || invite.status !== "pending") {
-      return jsonError("Invite not found", 404);
+    const { acceptInviteByToken } = await import("@/lib/invite-accept");
+    const result = await acceptInviteByToken(body.token);
+    if (!result) {
+      return jsonError("Invite not found, expired, or already used", 404);
     }
-    if (invite.expiresAt < new Date()) {
-      return jsonError("Invite expired", 410);
-    }
-    if (invite.organization.disabled) {
-      return jsonError("Organization is disabled", 403);
-    }
-
-    let user = await prisma.user.findUnique({
-      where: { email: invite.email },
-    });
-
-    if (!user) {
-      if (!body.name || !body.password) {
-        return jsonError("Name and password required for new accounts", 400);
-      }
-      const passwordHash = await bcrypt.hash(body.password, 10);
-      user = await prisma.user.create({
-        data: {
-          email: invite.email,
-          name: body.name,
-          passwordHash,
-        },
-      });
-    }
-
-    await prisma.$transaction([
-      prisma.membership.upsert({
-        where: {
-          userId_organizationId: {
-            userId: user.id,
-            organizationId: invite.organizationId,
-          },
-        },
-        update: { role: invite.role },
-        create: {
-          userId: user.id,
-          organizationId: invite.organizationId,
-          role: invite.role,
-        },
-      }),
-      prisma.invite.update({
-        where: { id: invite.id },
-        data: { status: "accepted" },
-      }),
-    ]);
-
     return jsonOk({
-      organizationId: invite.organizationId,
-      role: invite.role,
-      email: user.email,
-      isOrgAdmin: isOrgAdminRole(invite.role),
-      home: homeForRole(invite.role),
+      organizationId: result.organizationId,
+      role: result.membershipRole,
+      email: result.email,
+      home: result.home,
     });
   } catch (err) {
     return handleApiError(err);

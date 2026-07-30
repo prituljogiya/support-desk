@@ -1,16 +1,21 @@
 # Support Desk
 
-Multi-tenant helpdesk with a Freshdesk-inspired agent desk, customer portal, SLA timers, macros, plan feature gates, and optional Freshdesk / Stripe integrations. Local SQLite is the source of truth for v1.
+Multi-tenant helpdesk with a Freshdesk-inspired agent desk, customer portal, SLA timers, macros, plan feature gates, and optional Freshdesk / Stripe integrations.
 
 ## Stack
 
-Next.js (App Router) · TypeScript · Prisma · SQLite · Tailwind · NextAuth / Auth.js (Credentials)
+Next.js (App Router) · TypeScript · Prisma · **PostgreSQL** · Tailwind · NextAuth / Auth.js (Credentials)
 
-## Setup
+## Local setup
+
+1. Create a free Postgres database ([Neon](https://neon.tech), [Supabase](https://supabase.com), or Docker).
+2. Copy env and fill values:
 
 ```bash
 cp .env.example .env
-# set AUTH_SECRET (required). Add Freshdesk / Stripe vars when ready.
+# DATABASE_URL=postgresql://...
+# AUTH_SECRET=$(openssl rand -base64 32)
+# AUTH_URL=http://localhost:3000
 npm install
 npx prisma migrate deploy
 npm run db:seed
@@ -35,9 +40,47 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Demo org slug: `acme-support` on **Pro** (SLA, macros, Freshdesk sync enabled).
 
-### Roles & permissions
+## Deploy to Vercel (live site + API)
 
-15 roles (plus platform super-admin) with granular permissions in `src/lib/permissions.ts` (`tickets.*`, `users.*`, `sla.*`, `ai.*`, etc.). Nav and APIs check permissions; invite form can assign any invitable role. Super admin console: tenants, plans/coupons, users, system config JSON, audit logs, role matrix.
+Frontend and API routes deploy together — no separate backend server.
+
+### 1. Postgres
+
+Create a Neon project (or Vercel Storage → Postgres) and copy the connection string.
+
+### 2. Import the GitHub repo
+
+1. [vercel.com/new](https://vercel.com/new) → Import `support-desk`
+2. Framework: Next.js
+3. Build command uses: `prisma generate && prisma migrate deploy && next build`
+
+### 3. Environment variables
+
+In Vercel → Project → Settings → Environment Variables (Production + Preview):
+
+| Name | Example |
+| --- | --- |
+| `DATABASE_URL` | `postgresql://...?sslmode=require` |
+| `AUTH_SECRET` | output of `openssl rand -base64 32` |
+| `AUTH_URL` | `https://your-app.vercel.app` |
+| `CRON_SECRET` | optional |
+| `STRIPE_*` / `OPENAI_API_KEY` / Freshdesk | optional |
+
+### 4. Deploy & seed
+
+Push to `main` (or click Deploy). After the first successful deploy:
+
+```bash
+# With production DATABASE_URL available locally:
+npx prisma migrate deploy   # already runs on build
+DATABASE_URL="your-prod-url" npm run db:seed
+```
+
+Or use Neon SQL editor only for schema (migrate already applied on build); seed needs `npm run db:seed` once.
+
+### 5. Custom domain (optional)
+
+Vercel → Domains → add your domain → update `AUTH_URL` to `https://yourdomain.com`.
 
 ## Surfaces
 
@@ -49,46 +92,15 @@ Demo org slug: `acme-support` on **Pro** (SLA, macros, Freshdesk sync enabled).
 | `/desk/*` | Agent Kanban/list inbox + ticket workspace |
 | `/desk/knowledge` | Knowledge base articles |
 | `/desk/contacts` | Contacts + companies CRM |
-| `/desk/analytics` | Enterprise analytics suite (20+ dashboards, filters, CSV/PDF export) |
-| `/desk/reports` | Redirects to analytics |
-| `/desk/admin/*` | Invites, smart support, SLA, Freshdesk, billing, automations |
-| `/platform/*` | Super-admin: orgs, force plan, disable |
-| `/invite/[token]` | Accept membership invite |
-
-## Extra SaaS features
-
-- **Kanban board** — drag tickets across status columns
-- **Bulk actions** — multi-select status/priority/assignee/tags (list view)
-- **Saved views** — save current filters
-- **CSV export** — `/api/tickets/export`
-- **Automations** — keyword → assign/tag/priority on ticket create (Pro+)
-- **In-app alerts** — assignment notifications in the desk header
-- **Knowledge base** — publish & search help articles
-- **Analytics center** — Executive, SLA, CSAT, agents, channels, AI, geo, custom widgets, CSV/PDF export
+| `/desk/analytics` | Enterprise analytics suite |
+| `/desk/admin/*` | Invites, SLA, Freshdesk, billing, automations |
+| `/platform/*` | Super-admin: orgs, plans, users |
+| `/invite/[token]` | One-click invite accept (magic login) |
 
 ## Plans & feature gates
 
-Seeded plans: `free`, `pro`, `enterprise`. Helper `can(org, feature)` gates:
-
-- **Free:** canned responses, contacts, saved views
-- **Pro+:** SLA, macros, Freshdesk sync
-
-Without `STRIPE_*`, org owners and platform admins can assign plans in UI. With Stripe, Checkout updates `organization.planId` via `/api/webhooks/stripe`.
+Seeded plans: `free`, `pro`, `enterprise`. Helper `can(org, feature)` gates features. Without Stripe, owners/platform admins assign plans in UI.
 
 ## Freshdesk sync
 
-Priority for credentials:
-
-1. Organization Admin → Freshdesk domain + API key (Pro+)
-2. Else env `FRESHDESK_DOMAIN` / `FRESHDESK_API_KEY`
-
-Webhook: `POST /api/webhooks/freshdesk`  
-Optional org resolution: header `x-organization-slug` or `?org=<slug>` plus org or env webhook secret.
-
-Retry: `GET`/`POST /api/sync/retry` (staff session or `Authorization: Bearer $CRON_SECRET`).
-
-If Freshdesk is not configured, tickets/messages save locally with `syncStatus: skipped`.
-
-## Auth / tenancy
-
-JWT session carries `userId`, active `organizationId`, and `membershipRole`. Switch orgs with `POST /api/orgs/switch` then `session.update({ organizationId })`. All ticket APIs filter by the active organization.
+Configure per-org in Admin (Pro+), or set global `FRESHDESK_*` env vars.
