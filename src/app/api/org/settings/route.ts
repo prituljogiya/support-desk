@@ -86,6 +86,21 @@ export async function PATCH(req: Request) {
       include: { plan: true },
     });
 
+    if (body.logoUrl !== undefined || body.brandColor !== undefined) {
+      try {
+        const { parseOnboarding } = await import("@/lib/onboarding");
+        const state = parseOnboarding(updated.onboardingJson);
+        // Saving branding settings counts even if only color changed from default
+        state.brandedPortal = true;
+        await prisma.organization.update({
+          where: { id: updated.id },
+          data: { onboardingJson: JSON.stringify(state) },
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+
     return jsonOk({
       organization: {
         id: updated.id,

@@ -6,24 +6,14 @@ export type TenantAdminNavId =
   | "tickets-escalated"
   | "tickets-archived"
   | "omni-email"
-  | "omni-chat"
-  | "omni-whatsapp"
-  | "omni-social"
   | "customers"
   | "organizations"
   | "contacts"
   | "users"
-  | "departments"
-  | "teams"
   | "roles"
-  | "ai-copilot"
-  | "ai-analytics"
-  | "ai-prompts"
   | "knowledge"
   | "automation"
   | "reports"
-  | "integrations"
-  | "notifications"
   | "billing"
   | "settings-company"
   | "settings-hours"
@@ -32,7 +22,8 @@ export type TenantAdminNavId =
   | "settings-email"
   | "settings-api"
   | "audit"
-  | "profile";
+  | "profile"
+  | "onboarding";
 
 export type TenantNavItem = { id: TenantAdminNavId; label: string };
 export type TenantNavGroup = {
@@ -43,8 +34,10 @@ export type TenantNavGroup = {
   href?: TenantAdminNavId;
 };
 
+/** Only ship nav items that are real — stubs removed until built. */
 export const TENANT_ADMIN_NAV: TenantNavGroup[] = [
   { id: "dashboard", label: "Dashboard", icon: "⌂", href: "dashboard" },
+  { id: "onboarding", label: "Getting started", icon: "✓", href: "onboarding" },
   {
     id: "tickets",
     label: "Tickets",
@@ -59,14 +52,9 @@ export const TENANT_ADMIN_NAV: TenantNavGroup[] = [
   },
   {
     id: "omni",
-    label: "Omnichannel",
-    icon: "💬",
-    items: [
-      { id: "omni-email", label: "Email" },
-      { id: "omni-chat", label: "Live Chat" },
-      { id: "omni-whatsapp", label: "WhatsApp" },
-      { id: "omni-social", label: "Social Media" },
-    ],
+    label: "Channels",
+    icon: "✉️",
+    items: [{ id: "omni-email", label: "Email → tickets" }],
   },
   {
     id: "crm",
@@ -74,7 +62,7 @@ export const TENANT_ADMIN_NAV: TenantNavGroup[] = [
     icon: "👥",
     items: [
       { id: "customers", label: "Customers" },
-      { id: "organizations", label: "Organizations" },
+      { id: "organizations", label: "Companies" },
       { id: "contacts", label: "Contacts" },
     ],
   },
@@ -83,28 +71,14 @@ export const TENANT_ADMIN_NAV: TenantNavGroup[] = [
     label: "Team",
     icon: "👨‍💼",
     items: [
-      { id: "users", label: "Users" },
-      { id: "departments", label: "Departments" },
-      { id: "teams", label: "Teams" },
-      { id: "roles", label: "Roles & Permissions" },
-    ],
-  },
-  {
-    id: "ai",
-    label: "AI Center",
-    icon: "🤖",
-    items: [
-      { id: "ai-copilot", label: "AI Copilot" },
-      { id: "ai-analytics", label: "AI Analytics" },
-      { id: "ai-prompts", label: "Prompt Settings" },
+      { id: "users", label: "Users & invites" },
+      { id: "roles", label: "Roles" },
     ],
   },
   { id: "knowledge", label: "Knowledge Base", icon: "📚", href: "knowledge" },
   { id: "automation", label: "Automation", icon: "⚙️", href: "automation" },
-  { id: "reports", label: "Reports & Analytics", icon: "📊", href: "reports" },
-  { id: "integrations", label: "Integrations", icon: "🔗", href: "integrations" },
-  { id: "notifications", label: "Notifications", icon: "🔔", href: "notifications" },
-  { id: "billing", label: "Billing & Subscription", icon: "🧾", href: "billing" },
+  { id: "reports", label: "Reports", icon: "📊", href: "reports" },
+  { id: "billing", label: "Billing", icon: "🧾", href: "billing" },
   {
     id: "settings",
     label: "Settings",
@@ -114,7 +88,7 @@ export const TENANT_ADMIN_NAV: TenantNavGroup[] = [
       { id: "settings-hours", label: "Business Hours" },
       { id: "settings-sla", label: "SLA Policies" },
       { id: "settings-branding", label: "Branding" },
-      { id: "settings-email", label: "Email Settings" },
+      { id: "settings-email", label: "Email inbound" },
       { id: "settings-api", label: "API Keys" },
     ],
   },

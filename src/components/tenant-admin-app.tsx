@@ -19,6 +19,7 @@ import { ROLE_LABELS, ROLE_PERMISSIONS, PERMISSIONS } from "@/lib/permissions";
 import type { MembershipRole } from "@prisma/client";
 import { InviteMemberForm } from "@/components/admin-forms";
 import { ApiKeysPanel } from "@/components/api-keys-panel";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 
 type Snapshot = {
   organization: {
@@ -123,13 +124,21 @@ type Snapshot = {
 };
 
 export function TenantAdminApp() {
-  const [section, setSection] = useState<TenantAdminNavId>("dashboard");
+  const [section, setSection] = useState<TenantAdminNavId>(() => {
+    if (typeof window === "undefined") return "dashboard";
+    const q = new URLSearchParams(window.location.search).get("section");
+    if (q && TENANT_ADMIN_NAV.some(
+      (g) => g.href === q || g.items?.some((i) => i.id === q),
+    )) {
+      return q as TenantAdminNavId;
+    }
+    return "dashboard";
+  });
   const [navOpen, setNavOpen] = useState<Record<string, boolean>>({
     tickets: true,
     omni: true,
     crm: true,
     team: true,
-    ai: true,
     settings: true,
   });
   const [data, setData] = useState<Snapshot | null>(null);
@@ -151,6 +160,14 @@ export function TenantAdminApp() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("section") !== section) {
+      url.searchParams.set("section", section);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [section]);
 
   const brand = data?.organization.brandColor || "#0c4a6e";
 
@@ -293,6 +310,8 @@ export function TenantAdminApp() {
             <DashboardHome data={data} onGoto={setSection} />
           ) : null}
 
+          {section === "onboarding" ? <OnboardingChecklist /> : null}
+
           {section.startsWith("tickets-") ? (
             <TicketsPanel
               section={section}
@@ -302,11 +321,8 @@ export function TenantAdminApp() {
             />
           ) : null}
 
-          {section.startsWith("omni-") ? (
-            <OmniPanel
-              section={section}
-              byChannel={data.breakdowns.byChannel}
-            />
+          {section === "omni-email" ? (
+            <EmailInboundPanel org={data.organization} />
           ) : null}
 
           {section === "customers" ||
@@ -322,21 +338,15 @@ export function TenantAdminApp() {
             />
           ) : null}
 
-          {section === "users" ||
-          section === "departments" ||
-          section === "teams" ||
-          section === "roles" ? (
+          {section === "users" || section === "roles" ? (
             <TeamPanel
               section={section}
               members={data.members}
               departments={data.departments}
               teams={data.teams}
+              org={data.organization}
               onRefresh={load}
             />
-          ) : null}
-
-          {section.startsWith("ai-") ? (
-            <AiPanel section={section} kpis={data.kpis} />
           ) : null}
 
           {section === "knowledge" ? (
@@ -352,8 +362,6 @@ export function TenantAdminApp() {
 
           {section === "reports" ? <ReportsPanel data={data} /> : null}
 
-          {section === "integrations" ? <IntegrationsPanel /> : null}
-          {section === "notifications" ? <NotificationsPanel /> : null}
           {section === "billing" ? (
             <BillingPanel org={data.organization} kpis={data.kpis} />
           ) : null}
@@ -405,7 +413,7 @@ function DashboardHome({
         <KpiCard label="Overdue SLA" value={k.overdueTickets ?? 0} accent="#f43f5e" onClick={() => onGoto("tickets-escalated")} />
         <KpiCard label="CSAT" value={k.csat != null ? `${k.csat}/5` : "—"} accent="#8b5cf6" />
         <KpiCard label="Active agents" value={k.activeAgents ?? 0} onClick={() => onGoto("users")} />
-        <KpiCard label="Live chats" value={k.liveChats ?? 0} onClick={() => onGoto("omni-chat")} />
+        <KpiCard label="Live chats" value={k.liveChats ?? 0} onClick={() => onGoto("omni-email")} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
@@ -634,66 +642,6 @@ function TicketsPanel({
   );
 }
 
-function OmniPanel({
-  section,
-  byChannel,
-}: {
-  section: string;
-  byChannel: { label: string; value: number }[];
-}) {
-  const map: Record<string, string> = {
-    "omni-email": "email",
-    "omni-chat": "chat",
-    "omni-whatsapp": "whatsapp",
-    "omni-social": "social",
-  };
-  const key = map[section] || "email";
-  const channels = [
-    "email",
-    "chat",
-    "whatsapp",
-    "facebook",
-    "instagram",
-    "phone",
-    "sms",
-    "api",
-    "portal",
-  ];
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">{tenantNavLabel(section as TenantAdminNavId)}</h2>
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {channels.map((c, i) => {
-          const count =
-            byChannel.find((x) => x.label === c)?.value ??
-            (c === "social"
-              ? (byChannel.find((x) => x.label === "facebook")?.value || 0) +
-                (byChannel.find((x) => x.label === "instagram")?.value || 0)
-              : 0);
-          return (
-            <div
-              key={c}
-              className={`rounded-2xl border bg-white p-4 shadow-sm ${
-                key === c || (key === "social" && (c === "facebook" || c === "instagram"))
-                  ? "border-sky-300 ring-1 ring-sky-200"
-                  : "border-slate-200"
-              }`}
-            >
-              <div
-                className="mb-2 h-1.5 w-10 rounded-full"
-                style={{ background: colorAt(i) }}
-              />
-              <div className="text-sm font-semibold capitalize">{c}</div>
-              <div className="text-2xl font-semibold">{count}</div>
-              <div className="text-xs text-slate-400">tickets</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function CustomersPanel({
   section,
   companies,
@@ -790,12 +738,14 @@ function TeamPanel({
   members,
   departments,
   teams,
+  org,
   onRefresh,
 }: {
   section: string;
   members: Snapshot["members"];
   departments: Snapshot["departments"];
   teams: Snapshot["teams"];
+  org: Snapshot["organization"];
   onRefresh: () => void;
 }) {
   return (
@@ -807,6 +757,10 @@ function TeamPanel({
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold">Invite user</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Plan seats: {org.plan.seatLimit} on {org.plan.name}. Agent roles
+              consume a seat; customer roles do not.
+            </p>
             <div className="mt-3">
               <InviteMemberForm />
             </div>
@@ -924,55 +878,6 @@ function TeamPanel({
       <button type="button" onClick={onRefresh} className="text-sm text-sky-700">
         Refresh team data
       </button>
-    </div>
-  );
-}
-
-function AiPanel({
-  section,
-  kpis,
-}: {
-  section: string;
-  kpis: Snapshot["kpis"];
-}) {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">
-        {tenantNavLabel(section as TenantAdminNavId)}
-      </h2>
-      <div className="grid gap-3 sm:grid-cols-4">
-        <KpiCard label="AI events (30d)" value={kpis.aiEvents30d ?? 0} accent="#8b5cf6" />
-        <KpiCard label="Copilot ready" value="On" />
-        <KpiCard label="Suggest reply" value="Enabled" />
-        <KpiCard label="KB assist" value="Enabled" />
-      </div>
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {[
-          "AI Copilot",
-          "AI Reply Suggestions",
-          "AI Ticket Summary",
-          "AI Translation",
-          "AI Sentiment Analysis",
-          "AI Auto Categorization",
-          "AI Suggested Articles",
-        ].map((f, i) => (
-          <div
-            key={f}
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <div
-              className="mb-2 h-1.5 w-10 rounded-full"
-              style={{ background: colorAt(i) }}
-            />
-            <div className="font-medium">{f}</div>
-            <div className="text-xs text-slate-500">
-              {section === "ai-prompts"
-                ? "Edit prompt templates in Smart Support"
-                : "Available in ticket workspace"}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -1123,68 +1028,6 @@ function ReportsPanel({ data }: { data: Snapshot }) {
   );
 }
 
-function IntegrationsPanel() {
-  const items = [
-    "Email",
-    "WhatsApp Business",
-    "Slack",
-    "Microsoft Teams",
-    "Google Workspace",
-    "Jira",
-    "GitHub",
-    "Stripe",
-    "Razorpay",
-    "Zapier",
-    "REST API",
-    "Webhooks",
-  ];
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Integrations</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((name, i) => (
-          <div
-            key={name}
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <div
-              className="mb-2 h-1.5 w-10 rounded-full"
-              style={{ background: colorAt(i) }}
-            />
-            <div className="font-medium">{name}</div>
-            <div className="text-xs text-slate-500">Configure in Settings</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function NotificationsPanel() {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Notifications</h2>
-      <div className="grid gap-3 md:grid-cols-2">
-        {[
-          "Email Notifications",
-          "Push Notifications",
-          "Slack Alerts",
-          "WhatsApp Alerts",
-          "Browser Notifications",
-        ].map((n, i) => (
-          <label
-            key={n}
-            className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
-          >
-            <span className="text-sm font-medium">{n}</span>
-            <input type="checkbox" defaultChecked={i < 2} />
-          </label>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function BillingPanel({
   org,
   kpis,
@@ -1222,6 +1065,60 @@ function BillingPanel({
         >
           Plan: {org.plan.key}
         </Link>
+      </div>
+    </div>
+  );
+}
+
+function EmailInboundPanel({
+  org,
+}: {
+  org: Snapshot["organization"];
+}) {
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "";
+  const endpoint = `${origin}/api/webhooks/inbound-email`;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold">Email → tickets</h2>
+      <p className="max-w-2xl text-sm text-slate-600">
+        Point your inbound parse webhook (Resend, SendGrid, or similar) at this
+        endpoint. Each email creates a ticket for{" "}
+        <strong>{org.name}</strong> under channel <code>email</code>.
+      </p>
+      <div className="max-w-2xl space-y-3 rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            POST endpoint
+          </div>
+          <code className="mt-1 block break-all rounded bg-slate-50 px-3 py-2 text-xs">
+            {endpoint}
+          </code>
+        </div>
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Auth header
+          </div>
+          <code className="mt-1 block rounded bg-slate-50 px-3 py-2 text-xs">
+            Authorization: Bearer &lt;CRON_SECRET or INBOUND_EMAIL_SECRET&gt;
+          </code>
+        </div>
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            JSON body
+          </div>
+          <pre className="mt-1 overflow-auto rounded bg-slate-50 px-3 py-2 text-xs leading-relaxed">{`{
+  "org": "${org.slug}",
+  "from": "customer@example.com",
+  "subject": "Need help with billing",
+  "text": "Full email body…"
+}`}</pre>
+        </div>
+        <p className="text-xs text-slate-500">
+          Set <code>CRON_SECRET</code> or <code>INBOUND_EMAIL_SECRET</code> in
+          your deployment env. Org slug for this workspace:{" "}
+          <strong>{org.slug}</strong>.
+        </p>
       </div>
     </div>
   );
@@ -1327,10 +1224,7 @@ function SettingsPanel({
       )}
 
       {section === "settings-email" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
-          Configure support mailbox and email signature for outbound replies.
-          Channel volume is under Omnichannel → Email.
-        </div>
+        <EmailInboundPanel org={org} />
       )}
 
       {section === "settings-api" && <ApiKeysPanel />}

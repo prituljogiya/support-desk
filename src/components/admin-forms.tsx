@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type SeatInfo = {
+  used: number;
+  pendingInvites: number;
+  limit: number;
+  remaining: number;
+  planName: string;
+};
 
 export function InviteMemberForm() {
   const router = useRouter();
@@ -10,6 +18,16 @@ export function InviteMemberForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [seats, setSeats] = useState<SeatInfo | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/invites")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.seats) setSeats(d.seats);
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,15 +45,34 @@ export function InviteMemberForm() {
       setError(data.error || "Failed to invite");
       return;
     }
-    setMessage(
-      `Invite link ready (share this — they join with one click, no signup form): ${typeof window !== "undefined" ? window.location.origin : ""}${data.invite.acceptUrl}`,
-    );
+    const abs =
+      data.invite.absoluteAcceptUrl ||
+      `${typeof window !== "undefined" ? window.location.origin : ""}${data.invite.acceptUrl}`;
+    if (data.email?.sent) {
+      setMessage(`Invite emailed to ${email}. Backup link: ${abs}`);
+    } else {
+      setMessage(
+        `Invite created (email not configured — share this link): ${abs}`,
+      );
+    }
     setEmail("");
+    void fetch("/api/invites")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.seats) setSeats(d.seats);
+      });
     router.refresh();
   }
 
   return (
     <form onSubmit={onSubmit} className="max-w-md space-y-3">
+      {seats ? (
+        <p className="rounded bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          Seats: {seats.used + seats.pendingInvites}/{seats.limit} used on{" "}
+          {seats.planName}
+          {seats.remaining <= 0 ? " — limit reached" : ` · ${seats.remaining} left`}
+        </p>
+      ) : null}
       {error ? (
         <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-700">
           {error}

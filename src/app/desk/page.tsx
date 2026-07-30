@@ -5,6 +5,7 @@ import { TicketKanban } from "@/components/ticket-kanban";
 import { TicketListClient } from "@/components/ticket-list-client";
 import { PRIORITIES } from "@/lib/tickets";
 import { ASSIGNABLE_ROLES } from "@/lib/permissions";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 
 type Props = {
   searchParams: Promise<{
@@ -128,11 +129,15 @@ export default async function DeskInboxPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-3rem)]">
-      <div className="hidden w-52 shrink-0 border-r border-slate-200 bg-white p-3 lg:block">
-        <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Views
-        </div>
+    <div className="flex h-full min-h-[calc(100vh-3rem)] flex-col">
+      <div className="border-b border-slate-100 px-4 py-3">
+        <OnboardingChecklist compact />
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="hidden w-52 shrink-0 border-r border-slate-200 bg-white p-3 lg:block">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Views
+          </div>
         <ul className="space-y-1">
           <li>
             <Link
@@ -325,6 +330,7 @@ export default async function DeskInboxPage({ searchParams }: Props) {
             }))}
           />
         )}
+      </div>
       </div>
     </div>
   );

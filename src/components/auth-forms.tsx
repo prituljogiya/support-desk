@@ -115,7 +115,7 @@ export function SignupForm() {
       router.push("/login");
       return;
     }
-    router.push("/desk");
+    router.push("/desk/admin?section=onboarding");
     router.refresh();
   }
 

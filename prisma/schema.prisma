@@ -101,6 +101,9 @@ model Organization {
   trialEndsAt          DateTime?
   contractEndsAt       DateTime?
   healthScore          Int      @default(100)
+  /// JSON checklist: { invitedTeam, brandedPortal, firstTicket, dismissed }
+  onboardingJson       String   @default("{}")
+  onboardingCompletedAt DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -127,6 +130,7 @@ model Organization {
   auditLogs       AuditLog[]
   billingEvents   BillingEvent[]
   apiKeys         ApiKey[]
+  attachments     Attachment[]
 
   @@index([planId])
   @@index([industry])
@@ -180,6 +184,7 @@ model User {
   knowledgeArticles KnowledgeArticle[] @relation("ArticleAuthor")
   notifications    Notification[]
   csatRatings      CsatRating[]
+  attachments      Attachment[]  @relation("AttachmentUploader")
   auditLogs        AuditLog[]    @relation("AuditActor")
   impersonations   AuditLog[]    @relation("ImpersonatedUser")
 }
@@ -391,6 +396,7 @@ model Ticket {
   messages     Message[]
   tags         TicketTag[]
   csat         CsatRating?
+  attachments  Attachment[]
 
   @@unique([organizationId, freshdeskId])
   @@index([organizationId])
@@ -421,6 +427,7 @@ model Message {
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   author User   @relation(fields: [authorId], references: [id])
+  attachments Attachment[]
 
   @@index([ticketId])
   @@index([syncStatus])
@@ -512,6 +519,29 @@ model CsatRating {
 
   @@index([organizationId])
   @@index([score])
+}
+
+model Attachment {
+  id             String   @id @default(cuid())
+  organizationId String
+  ticketId       String
+  messageId      String?
+  filename       String
+  mimeType       String
+  sizeBytes      Int
+  /// Base64 payload for portable storage (MVP; max ~2MB enforced in API)
+  dataBase64     String
+  uploadedById   String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ticket       Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  message      Message?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  uploadedBy   User?        @relation("AttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([ticketId])
+  @@index([messageId])
 }
 
 model AutomationRun {

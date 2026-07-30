@@ -4,11 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgAdmin } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { INVITABLE_ROLES } from "@/lib/permissions";
+import { getSeatUsage, roleCountsAsSeat } from "@/lib/seats";
+import { sendEmail } from "@/lib/mail";
+import { parseOnboarding } from "@/lib/onboarding";
 
 export async function GET() {
   try {
     const session = await requireOrgAdmin();
-    const [memberships, invites] = await Promise.all([
+    const [memberships, invites, seats] = await Promise.all([
       prisma.membership.findMany({
         where: { organizationId: session.user.organizationId },
         include: {
@@ -23,6 +26,7 @@ export async function GET() {
         },
         orderBy: { createdAt: "desc" },
       }),
+      getSeatUsage(session.user.organizationId),
     ]);
 
     return jsonOk({
@@ -40,6 +44,7 @@ export async function GET() {
         expiresAt: i.expiresAt,
       })),
       roles: INVITABLE_ROLES,
+      seats,
     });
   } catch (err) {
     return handleApiError(err);
@@ -64,6 +69,16 @@ export async function POST(req: Request) {
       return jsonError("Only owners can invite admins", 403);
     }
 
+    if (roleCountsAsSeat(body.role)) {
+      const seats = await getSeatUsage(session.user.organizationId);
+      if (seats && seats.remaining <= 0) {
+        return jsonError(
+          `Seat limit reached (${seats.used + seats.pendingInvites}/${seats.limit} on ${seats.planName}). Upgrade your plan or revoke a pending invite.`,
+          402,
+        );
+      }
+    }
+
     const existingMember = await prisma.membership.findFirst({
       where: {
         organizationId: session.user.organizationId,
@@ -85,6 +100,39 @@ export async function POST(req: Request) {
       },
     });
 
+    const origin =
+      req.headers.get("origin") ||
+      process.env.AUTH_URL ||
+      "http://localhost:3000";
+    const acceptUrl = `${origin.replace(/\/$/, "")}/invite/${invite.token}`;
+
+    let emailResult: { sent: boolean; provider: string } | null = null;
+    try {
+      emailResult = await sendEmail({
+        to: email,
+        subject: `You're invited to ${session.user.organizationName || "Support Desk"}`,
+        text: `You've been invited as ${body.role}.\n\nAccept your invite (no password form needed):\n${acceptUrl}\n\nThis link expires in 7 days.`,
+        html: `<p>You've been invited as <strong>${body.role}</strong>.</p><p><a href="${acceptUrl}">Accept invite &amp; continue</a></p><p>This link expires in 7 days.</p>`,
+      });
+    } catch (e) {
+      console.error("invite email failed", e);
+    }
+
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: session.user.organizationId },
+        select: { onboardingJson: true },
+      });
+      const state = parseOnboarding(org?.onboardingJson);
+      state.invitedTeam = true;
+      await prisma.organization.update({
+        where: { id: session.user.organizationId },
+        data: { onboardingJson: JSON.stringify(state) },
+      });
+    } catch {
+      /* ignore */
+    }
+
     return jsonOk(
       {
         invite: {
@@ -94,7 +142,9 @@ export async function POST(req: Request) {
           token: invite.token,
           expiresAt: invite.expiresAt,
           acceptUrl: `/invite/${invite.token}`,
+          absoluteAcceptUrl: acceptUrl,
         },
+        email: emailResult,
       },
       { status: 201 },
     );

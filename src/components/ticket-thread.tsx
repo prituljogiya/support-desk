@@ -9,6 +9,7 @@ import {
   SlaBadge,
 } from "@/components/shell";
 import { PRIORITIES, STATUSES } from "@/lib/tickets";
+import { TicketExtras } from "@/components/ticket-extras";
 
 type Person = { id: string; name: string; email: string; role?: string };
 type Tag = { id: string; name: string; color: string };
@@ -246,6 +247,8 @@ export function TicketThread({
             </div>
           ))}
         </div>
+
+        <TicketExtras ticketId={ticket.id} status={ticket.status} mode={mode} />
 
         <form
           onSubmit={sendReply}
